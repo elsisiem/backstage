@@ -60,7 +60,7 @@ b{font-weight:600}
 .panel-b{overflow:auto;padding:10px;flex:1}
 
 /* rooms */
-.room{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:8px;background:#0e1420;animation:in .35s ease}
+.room{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:8px;background:#0e1420;cursor:pointer}
 .room .rn{font-family:var(--mono);font-size:10.5px;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;display:flex;justify-content:space-between}
 .room .st{font-weight:600;margin:4px 0 2px;line-height:1.25}
 .room .sp{color:var(--muted);font-size:12px}
@@ -79,6 +79,7 @@ b{font-weight:600}
 .graph-legend{position:absolute;top:10px;left:12px;z-index:2;display:flex;gap:10px;flex-wrap:wrap;font-size:11px;color:var(--muted);font-family:var(--mono)}
 .graph-legend i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;vertical-align:middle}
 .graph-empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--dim);text-align:center;padding:40px;pointer-events:none}
+.graph-empty[hidden],.detail[hidden]{display:none}
 .detail{position:absolute;right:12px;top:40px;width:380px;max-height:calc(100% - 60px);overflow:auto;background:#0d1320f2;border:1px solid var(--line2);border-radius:12px;padding:14px;z-index:3;box-shadow:0 20px 60px rgba(0,0,0,.5);animation:in .25s ease}
 .detail .close{position:absolute;right:8px;top:6px;background:transparent;border:0;color:var(--muted);font-size:18px;cursor:pointer}
 .detail h3{margin:0 24px 6px 0;font-size:15px;line-height:1.3}

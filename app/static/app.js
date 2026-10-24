@@ -68,7 +68,7 @@
     S.counts = { posts: 0, linked: 0, moments: 0, anns: 0 };
     S.posts.clear(); S.activity.clear(); S.hot.clear(); S.moments = [];
     S.gd = { nodes: [], links: [] }; S.nodeIx.clear(); S.linkIx.clear(); S.queue = [];
-    if (S.g) S.g.graphData(S.gd);
+    if (S.g) S.g.graphData({ nodes: [], links: [] });
     $('#log').innerHTML = ''; $('#moments').innerHTML = ''; $('#wire').innerHTML = '';
     $('#t-moments').textContent = '0'; $('#t-wire').textContent = '0';
     $('#graph-empty').hidden = false;
@@ -193,6 +193,9 @@
     const rooms = [...byRoom.entries()].map(([room, ss]) => ({ room, ss, act: Math.max(...ss.map((s) => recent(s.id))), hot: ss.some((s) => (S.hot.get(s.id) || 0) >= now - 2400) }))
       .sort((a, b) => b.hot - a.hot || b.act - a.act || a.room.localeCompare(b.room));
     $('#rooms-sub').textContent = rooms.length ? `${live.length} sessions in ${rooms.length} rooms` : 'nothing scheduled at this minute';
+    const sig = rooms.slice(0, 14).map(({ room, ss, act, hot }) => room + ':' + ss.map((s) => s.id + '/' + Math.min(100, recent(s.id) * 14)).join(',') + (hot ? '!' : '')).join('|') + '#' + Math.floor(now / 60);
+    if (sig === S.roomsSig) return;
+    S.roomsSig = sig;
     $('#rooms').innerHTML = rooms.slice(0, 14).map(({ room, ss, act, hot }) => ss.slice(0, 2).map((s) => {
       const starts = s.start_epoch > now ? `starts in ${Math.ceil((s.start_epoch - now) / 60)} min` : s.end_epoch < now ? 'just ended' : `${Math.floor((now - s.start_epoch) / 60)} min in`;
       return `<div class="room ${hot ? 'hot' : ''}" data-sid="${s.id}"><div class="rn"><span>${esc(room.split('@')[0].trim())}</span><span class="ago">${starts}</span></div>
@@ -237,7 +240,7 @@
       .nodeCanvasObject((n, ctx, scale) => {
         if (!['session', 'ann', 'moment', 'speaker', 'facet'].includes(n.type)) return;
         if (scale < 0.9 && n.type !== 'moment') return;
-        const label = n.type === 'moment' ? '🔥 ' + n.label.slice(0, 48) : n.label.slice(0, n.type === 'session' ? 44 : 28);
+        const label = n.type === 'moment' ? '🔥 ' + n.label.slice(0, 38) : n.label.slice(0, n.type === 'session' ? 36 : 24);
         const size = Math.max(10 / scale, 2.6);
         ctx.font = `${n.type === 'speaker' || n.type === 'facet' ? 500 : 600} ${size}px Inter, sans-serif`;
         ctx.textAlign = 'center'; ctx.textBaseline = 'top';
@@ -248,6 +251,8 @@
         ctx.fillText(label, n.x, n.y + (n.val || 1) + 4.5);
       })
       .onNodeClick((n) => openNode(n))
+      .onZoomEnd(() => { if (Date.now() - (S.lastFit || 0) > 1200) S.userZoomed = true; })
+      .onBackgroundClick(() => { S.userZoomed = false; })
       .d3AlphaDecay(0.03).d3VelocityDecay(0.3).cooldownTicks(200).warmupTicks(0)
       .backgroundColor('rgba(0,0,0,0)');
     S.g.d3Force('charge').strength(-45);
@@ -273,7 +278,9 @@
       // keep the picture readable: cap floating (unlinked) posts
       const floating = S.gd.nodes.filter((n) => n.type === 'post' && !n.linked);
       if (floating.length > 160) { const drop = new Set(floating.slice(0, floating.length - 160).map((n) => n.id)); S.gd.nodes = S.gd.nodes.filter((n) => !drop.has(n.id)); drop.forEach((id) => S.nodeIx.delete(id)); S.gd.links = S.gd.links.filter((l) => !drop.has(l.source.id || l.source) && !drop.has(l.target.id || l.target)); }
-      S.g.graphData(S.gd); renderCounters();
+      S.g.graphData({ nodes: [...S.gd.nodes], links: [...S.gd.links] }); renderCounters();
+      // keep the whole picture in frame while it grows, unless the viewer took the wheel
+      if (!S.userZoomed && Date.now() - (S.lastFit || 0) > 1500) { S.lastFit = Date.now(); setTimeout(() => S.g.zoomToFit(600, 40), 300); }
     }, 120);
   }
 
@@ -372,5 +379,6 @@
     $('#btn-live').onclick = () => { $('#console').scrollIntoView({ behavior: 'smooth' }); const c = S.confs.find((x) => x.id === 'universe26'); if (c?.built) loadConf('universe26'); else alert('Universe 2026 opens Wednesday 28 October. The agenda is loaded; posts start flowing when the doors open.'); };
   }
 
+  window.__S = S;
   boot();
 })();
