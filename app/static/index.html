@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Backstage</title>
+<meta name="description" content="The live layer for everyone who is not in the room. Any conference, resolved from the public internet into a graph, as it happens.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/styles.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='44' fill='%237c5cff'/><circle cx='50' cy='50' r='16' fill='%230b0f17'/></svg>">
+</head>
+<body>
+<header class="hero" id="hero">
+  <div class="hero-inner">
+    <div class="brand"><span class="dot"></span> BACKSTAGE</div>
+    <h1>The live layer for everyone<br><em>who is not in the room.</em></h1>
+    <p class="lede">Every conference has eight rooms and you are in one. Every conference has ten thousand people who care and a thousand who came. Backstage resolves the public internet to the agenda, live, into a graph you can question.</p>
+    <div class="hero-stats" id="hero-stats">
+      <div class="stat"><b id="hs-posts">–</b><span>posts resolved</span></div>
+      <div class="stat"><b id="hs-sessions">–</b><span>sessions</span></div>
+      <div class="stat"><b id="hs-moments">–</b><span>moments found</span></div>
+      <div class="stat"><b id="hs-anns">–</b><span>announcements traced</span></div>
+    </div>
+    <div class="hero-actions">
+      <button class="btn primary" id="btn-replay">▶ Replay Universe 2025, Day 1 keynote</button>
+      <button class="btn ghost" id="btn-live">Universe 2026 · goes live Wed 28 Oct</button>
+    </div>
+    <div class="powered">graph <b>FalkorDB</b> · hard-to-get data <b>Bright Data</b> · discovery <b>Exa</b></div>
+  </div>
+</header>
+
+<main class="console" id="console">
+  <div class="topbar">
+    <div class="tb-left">
+      <select id="conf-select" class="select"></select>
+      <div class="clock"><span id="clock-day">—</span><b id="clock-time">--:--</b><span class="tz">PT</span></div>
+      <span class="live-pill" id="mode-pill">REPLAY</span>
+    </div>
+    <div class="tb-mid">
+      <button class="icon-btn" id="btn-play" title="play / pause">▶</button>
+      <div class="speeds" id="speeds">
+        <button data-speed="30">30×</button><button data-speed="120" class="on">120×</button><button data-speed="600">600×</button>
+      </div>
+      <div class="jumps">
+        <button data-jump="day1">Day 1 · 8:30</button><button data-jump="keynote">Keynote</button><button data-jump="day1pm">Day 1 · 2 PM</button><button data-jump="day2">Day 2</button>
+      </div>
+    </div>
+    <div class="tb-right counters">
+      <div><b id="c-posts">0</b><span>posts</span></div>
+      <div><b id="c-linked">0</b><span>linked</span></div>
+      <div><b id="c-moments">0</b><span>moments</span></div>
+      <div><b id="c-anns">0</b><span>shipped</span></div>
+      <div class="graphstat"><b id="c-nodes">0</b><span>graph nodes</span></div>
+    </div>
+  </div>
+
+  <div class="grid">
+    <aside class="panel rooms">
+      <div class="panel-h"><span>Rooms, right now</span><small id="rooms-sub">waiting for the clock</small></div>
+      <div class="panel-b" id="rooms"></div>
+    </aside>
+
+    <section class="panel graphwrap">
+      <div class="graph-legend">
+        <span><i style="background:#7c5cff"></i>session</span><span><i style="background:#22d3ee"></i>speaker</span>
+        <span><i style="background:#3b82f6"></i>bluesky post</span><span><i style="background:#60a5fa"></i>linkedin post</span>
+        <span><i style="background:#f59e0b"></i>announcement</span><span><i style="background:#fb7185"></i>moment</span><span><i style="background:#10b981"></i>facet</span>
+      </div>
+      <div id="graph"></div>
+      <div class="graph-empty" id="graph-empty">Press play. The graph builds itself from the public internet as the day unfolds.</div>
+      <div class="detail" id="detail" hidden>
+        <button class="close" id="detail-close">×</button>
+        <div id="detail-body"></div>
+      </div>
+    </section>
+
+    <aside class="panel right">
+      <div class="tabs" id="tabs">
+        <button data-tab="agents" class="on">Agents</button><button data-tab="moments">Moments <b id="t-moments">0</b></button>
+        <button data-tab="wire">Wire <b id="t-wire">0</b></button><button data-tab="ask">Ask</button>
+      </div>
+      <div class="tabpane on" id="tab-agents"><div class="log" id="log"></div></div>
+      <div class="tabpane" id="tab-moments"><div class="cards" id="moments"><div class="empty">Moments appear when several people post about one room inside a short window, or when an announcement starts landing.</div></div></div>
+      <div class="tabpane" id="tab-wire"><div class="cards" id="wire"><div class="empty">Announcements appear here the minute they ship, tagged with the parts of your stack they touch.</div></div></div>
+      <div class="tabpane" id="tab-ask">
+        <div class="ask">
+          <div class="chips" id="ask-chips"></div>
+          <form id="ask-form"><input id="ask-input" placeholder="Ask the graph anything about the conference…" autocomplete="off"><button class="btn primary small">Ask</button></form>
+          <div id="ask-out"></div>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <section class="panel yours">
+    <div class="panel-h"><span>Your Backstage</span><small>paste a public GitHub repo: which sessions and announcements touch your stack, and why</small></div>
+    <form class="repo-form" id="repo-form"><input id="repo-input" placeholder="https://github.com/owner/repo" value="https://github.com/falkordb/falkordb"><button class="btn primary small">Build mine</button></form>
+    <div class="yours-out" id="yours-out"></div>
+  </section>
+
+  <footer class="foot">Built at Patch the Conference, San Francisco, 24 Oct 2026. Timestamps are recovered from platform post IDs (Bluesky TIDs, LinkedIn activity IDs), so the replay is the real minute-by-minute day. <a href="https://github.com/elsisiem/backstage" target="_blank" rel="noopener">source</a></footer>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/force-graph@1/dist/force-graph.min.js"></script>
+<script src="/static/app.js"></script>
+</body>
+</html>
