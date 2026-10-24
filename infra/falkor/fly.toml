@@ -1,0 +1,14 @@
+app = "backstage-falkor"
+primary_region = "sjc"
+
+[build]
+  image = "falkordb/falkordb:v4.22.2"
+
+[mounts]
+  source = "falkor_data"
+  destination = "/var/lib/falkordb/data"
+
+[[vm]]
+  memory = "1gb"
+  cpu_kind = "shared"
+  cpus = 1
