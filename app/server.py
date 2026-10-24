@@ -91,12 +91,18 @@ async def bootstrap(conf_id: str):
 
 # ----- replay stream ------------------------------------------------------------------------
 def _mirror_to_live(g: Graph, ev: dict, by_session: dict) -> None:
-    """Write a replayed event into the live graph (idempotent MERGEs)."""
+    """Write a replayed event into the live graph (idempotent MERGEs). Sessions are merged on first contact."""
     try:
         if ev["type"] == "post":
             g.add_post({**ev["post"], "hashtags": ev["post"].get("hashtags", [])})
         elif ev["type"] == "resolve":
             for s in ev["sessions"]:
+                meta_s = by_session.get(s["session_id"], {})
+                g.q("MERGE (s:Session {id:$id}) SET s.title=$title, s.room=$room, s.start_local=$sl, s.replayable=$rp",
+                    {"id": s["session_id"], "title": s.get("title", ""), "room": s.get("room", ""), "sl": meta_s.get("start_local", ""), "rp": bool(meta_s.get("replayable"))})
+                for name in ev.get("author_of", []):
+                    g.q("MATCH (p:Post {id:$pid})-[:BY]->(a:Author), (s:Session {id:$sid}) MERGE (sp:Speaker {id:$spid}) SET sp.name=$name "
+                        "MERGE (a)-[:IS]->(sp) MERGE (s)-[:PRESENTED_BY]->(sp)", {"pid": ev["post_id"], "sid": s["session_id"], "spid": "live:" + name, "name": name})
                 g.link_post_session(ev["post_id"], s["session_id"], s["confidence"], s["reason"], s["signals"])
             for f in ev.get("facets", []):
                 g.tag_post_facets(ev["post_id"], [f])
@@ -123,8 +129,7 @@ async def stream(request: Request, conf_id: str, speed: float = Query(60.0, ge=1
     if mirror:
         try:
             lg = live_graph(conf_id)
-            if not lg.exists():  # one-time: the agenda skeleton; replays then MERGE into it idempotently
-                lg.load_agenda(meta["conf"], _sessions_for_graph(meta), _speakers_for_graph(meta))
+            lg.ensure_indices()
         except Exception:
             lg = None
     mirror_q: asyncio.Queue = asyncio.Queue(maxsize=2000)

@@ -132,6 +132,39 @@ class Graph:
             },
         )
 
+    def add_posts_batch(self, posts: list[dict]) -> None:
+        rows = [{
+            "id": p["id"], "url": p["url"], "platform": p["platform"], "text": p["text"], "ts": p.get("ts") or "",
+            "ts_epoch": epoch(p.get("ts")), "exact": bool(p.get("ts_exact")), "day": p.get("day") or "",
+            "kind": p.get("kind") or "post", "title": p.get("title") or "", "hashtags": p.get("hashtags") or [],
+            "aid": f"{p['platform']}:{(p.get('handle') or p.get('author') or 'unknown').lower()}",
+            "handle": p.get("handle") or "", "author": p.get("author") or "",
+        } for p in posts]
+        for i in range(0, len(rows), 100):
+            self.q(
+                """
+                UNWIND $rows AS r
+                MERGE (po:Post {id:r.id})
+                SET po.url=r.url, po.platform=r.platform, po.text=r.text, po.ts=r.ts, po.ts_epoch=r.ts_epoch, po.exact=r.exact,
+                    po.day=r.day, po.kind=r.kind, po.title=r.title, po.hashtags=r.hashtags
+                MERGE (a:Author {id:r.aid}) SET a.handle=r.handle, a.name=r.author, a.platform=r.platform
+                MERGE (po)-[:BY]->(a)
+                """,
+                {"rows": rows[i:i + 100]},
+            )
+
+    def link_batch(self, kind: str, rows: list[dict]) -> None:
+        """Batch relationship writes. kind in: session, speaker_mention, author_speaker, facet, announcement."""
+        cy = {
+            "session": "UNWIND $rows AS r MATCH (p:Post {id:r.pid}),(s:Session {id:r.sid}) MERGE (p)-[e:ABOUT_SESSION]->(s) SET e.confidence=r.c, e.reason=r.reason, e.signals=r.signals",
+            "speaker_mention": "UNWIND $rows AS r MATCH (p:Post {id:r.pid}),(sp:Speaker {id:r.sid}) MERGE (p)-[:MENTIONS]->(sp)",
+            "author_speaker": "UNWIND $rows AS r MATCH (p:Post {id:r.pid})-[:BY]->(a:Author), (sp:Speaker {id:r.sid}) MERGE (a)-[:IS]->(sp)",
+            "facet": "UNWIND $rows AS r MATCH (p:Post {id:r.pid}) MERGE (f:Facet {id:r.f}) SET f.name=r.f MERGE (p)-[:TAGS]->(f)",
+            "announcement": "UNWIND $rows AS r MATCH (p:Post {id:r.pid}),(a:Announcement {id:r.aid}) MERGE (p)-[:ABOUT_ANNOUNCEMENT]->(a)",
+        }[kind]
+        for i in range(0, len(rows), 200):
+            self.q(cy, {"rows": rows[i:i + 200]})
+
     def link_post_session(self, post_id: str, session_id: str, confidence: float, reason: str, signals: list[str]) -> None:
         self.q(
             "MATCH (p:Post {id:$pid}),(s:Session {id:$sid}) MERGE (p)-[r:ABOUT_SESSION]->(s) "

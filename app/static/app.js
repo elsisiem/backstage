@@ -26,6 +26,15 @@
     const t = await (await fetch('/api/ask/templates')).json();
     $('#ask-chips').innerHTML = t.map((x) => `<button data-t="${x.id}">${esc(x.q)}</button>`).join('');
     $$('#ask-chips button').forEach((b) => (b.onclick = () => ask({ template: b.dataset.t })));
+    // deep links for demos: ?play=keynote|day1|day1pm|day2&speed=120
+    const u = new URL(location.href);
+    if (u.searchParams.get('speed')) { S.speed = +u.searchParams.get('speed'); $$('#speeds button').forEach((x) => x.classList.toggle('on', +x.dataset.speed === S.speed)); }
+    const jump = u.searchParams.get('play');
+    if (jump) { $('#console').scrollIntoView(); const at = jumpEpoch(jump); resetView(); S.clock = at; renderClock(); renderRooms(); play(at); }
+  }
+
+  function jumpEpoch(j) {
+    return j === 'day1' ? dayEpoch(0, 15, 30) : j === 'keynote' ? dayEpoch(0, 15, 55) : j === 'day1pm' ? dayEpoch(0, 21, 0) : j === 'day2' ? dayEpoch(1, 15, 30) : S.meta.clock.start;
   }
 
   async function loadConf(id) {
@@ -44,7 +53,7 @@
     $('#mode-pill').textContent = live ? 'LIVE' : 'REPLAY';
     $('#mode-pill').classList.toggle('live', live);
     resetView();
-    S.clock = S.meta.clock.start || dayEpoch(0, 15, 30);
+    S.clock = dayEpoch(0, 15, 30);
     renderClock();
     renderRooms();
     if (live) log('listener', 'agenda loaded: ' + S.meta.sessions.length + ' sessions · polling Bluesky, LinkedIn and X every 2 min once the conference starts');
@@ -353,7 +362,7 @@
     $('#btn-play').onclick = () => (S.playing ? stop() : play());
     $$('#speeds button').forEach((b) => (b.onclick = () => { $$('#speeds button').forEach((x) => x.classList.remove('on')); b.classList.add('on'); S.speed = +b.dataset.speed; if (S.playing) play(S.clock); }));
     $$('#jumps button').forEach((b) => (b.onclick = () => {
-      const j = b.dataset.jump; const at = j === 'day1' ? dayEpoch(0, 15, 30) : j === 'keynote' ? dayEpoch(0, 15, 55) : j === 'day1pm' ? dayEpoch(0, 21, 0) : dayEpoch(1, 15, 30);
+      const at = jumpEpoch(b.dataset.jump);
       resetView(); S.clock = at; renderClock(); renderRooms(); play(at);
     }));
     $$('#tabs button').forEach((b) => (b.onclick = () => { $$('#tabs button').forEach((x) => x.classList.remove('on')); b.classList.add('on'); $$('.tabpane').forEach((p) => p.classList.remove('on')); $('#tab-' + b.dataset.tab).classList.add('on'); }));

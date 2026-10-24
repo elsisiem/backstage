@@ -85,21 +85,22 @@ def main() -> None:
     posts = [p for p in posts if relevant(p)]
     print(f"  relevance filter: kept {len(posts)}, dropped {len(dropped)} off-topic discovery hits")
     for p in posts:
+        p["kind"] = res_by_post[p["id"]]["kind"]
+    g.add_posts_batch(posts)
+    batches = {"session": [], "speaker_mention": [], "author_speaker": [], "facet": [], "announcement": []}
+    for p in posts:
         r = res_by_post[p["id"]]
-        p["kind"] = r["kind"]
-        g.add_post(p)
         for s in r["sessions"]:
-            g.link_post_session(p["id"], s["session_id"], s["confidence"], s["reason"], s["signals"])
-        for spid in r["mentions"]:
-            g.link_post_speaker(p["id"], spid)
-        for spid in r["author_of"]:
-            g.link_author_speaker(p["id"], spid)
-        if r["facets"]:
-            g.tag_post_facets(p["id"], r["facets"])
-        for aid in r["announcements"]:
-            g.link_post_announcement(p["id"], aid)
+            batches["session"].append({"pid": p["id"], "sid": s["session_id"], "c": s["confidence"], "reason": s["reason"], "signals": s["signals"]})
+        batches["speaker_mention"] += [{"pid": p["id"], "sid": spid} for spid in r["mentions"]]
+        batches["author_speaker"] += [{"pid": p["id"], "sid": spid} for spid in r["author_of"]]
+        batches["facet"] += [{"pid": p["id"], "f": f} for f in r["facets"]]
+        batches["announcement"] += [{"pid": p["id"], "aid": aid} for aid in r["announcements"]]
         for art in r["artifacts"]:
             g.add_artifact(p["id"], art["url"], art["kind"], r["sessions"][0]["session_id"] if r["sessions"] else None)
+    for kind, rows in batches.items():
+        if rows:
+            g.link_batch(kind, rows)
     linked = sum(1 for r in resolutions if r["sessions"])
     print(f"  resolved: {linked}/{len(posts)} posts linked to sessions, "
           f"{sum(1 for r in resolutions if r['announcements'])} to announcements, "

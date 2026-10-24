@@ -120,22 +120,27 @@ def load_announcements(conf_id: str) -> list[dict]:
 _STOP = {"the", "a", "an", "and", "for", "in", "of", "to", "with", "now", "is", "are", "on", "your", "any", "way", "you", "work", "new", "github", "changelog", "blog", "introducing", "announcing", "generally", "available", "public", "preview", "gets", "upgraded", "how", "what", "from", "into"}
 
 
+_GENERIC = {"github copilot", "copilot", "github", "enterprise", "security", "dashboard", "automated", "delegate", "features", "controls",
+            "accounts", "business", "developer", "releases", "scanning", "supports", "metadata", "automatically", "introducing", "announcing",
+            "github actions", "visual studio", "visual studio code", "copilot coding", "ask copilot", "updated copilot", "copilot visual",
+            "github-hosted", "custom images", "extended", "grouping", "managing", "upcoming", "deprecation", "evaluation", "measuring", "instructions"}
+
+# distinctive product phrases that identify one announcement inside a social post
+_DISTINCT = ["agent hq", "mission control", "octoverse", "code quality", "immutable releases", "copilot cli", "custom agents", "self-hosted runners",
+             "copilot for linear", "in slack", "jetbrains", "intellij", "secret scanning", "code scanning", "usage metrics", "home dashboard",
+             "mcp registry", "allowlist", "app modernization", "partner award", "control plane", "ai controls", "1 vcpu", "codeql action v3",
+             "unaffiliated users", "mcp server", "server instructions", "grouping changes", "copilot business", "code review"]
+
+
 def keyphrases(title: str) -> list[str]:
-    """Short phrases that identify an announcement inside a social post ("Agent HQ", "mission control")."""
-    t = re.sub(r"[^\w\s@#&.-]", " ", title)
-    words = [w for w in t.split() if w.lower() not in _STOP]
-    phrases = set()
-    # capitalized multiword runs
+    """Phrases distinctive enough to tie a social post to this announcement (never generic product names)."""
+    tl = title.lower()
+    phrases = {d for d in _DISTINCT if d in tl}
     for m in re.finditer(r"((?:[A-Z][\w.&-]*\s+){1,3}[A-Z][\w.&-]*)", title):
-        ph = m.group(1).strip()
-        if len(ph) > 5 and ph.lower() not in ("github blog", "github changelog", "the github"):
-            phrases.add(ph.lower())
-    if len(words) >= 2:
-        phrases.add(" ".join(words[:2]).lower())
-    for w in words:
-        if len(w) > 7 and w.lower() not in ("copilot", "github"):
-            phrases.add(w.lower())
-    return sorted(phrases)[:8]
+        ph = m.group(1).strip().lower()
+        if len(ph) > 7 and ph not in _GENERIC and len(ph.split()) >= 2:
+            phrases.add(ph)
+    return sorted(phrases)[:6]
 
 
 if __name__ == "__main__":

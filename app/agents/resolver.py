@@ -136,7 +136,11 @@ class Resolver:
             prods = [p for p in s.get("products", []) if len(p) > 3 and _norm(p).strip() in tn]
             if prods and len(prods) >= 1 and any(p.lower() not in ("github", "copilot") for p in prods):
                 sig["product"] = 0.5
-            score = 0.5 * sig.get("author", 0) + 0.35 * sig.get("mention", 0) + 0.35 * sig.get("title", 0) + 0.35 * sig.get("semantic", 0) + 0.12 * sig.get("product", 0)
+            # stage keywords: "keynote" / "main stage" posts inside the keynote slot belong to the keynote
+            if ("keynote" in title or s.get("type") == "Keynote") and ("keynote" in tn or "main stage" in tn or "opening" in tn) and self.in_window(post, s) == 1.0:
+                sig["keyword"] = 1.0
+            score = (0.5 * sig.get("author", 0) + 0.35 * sig.get("mention", 0) + 0.35 * sig.get("title", 0) + 0.35 * sig.get("semantic", 0)
+                     + 0.12 * sig.get("product", 0) + 0.4 * sig.get("keyword", 0))
             if score > 0.15:
                 tw = self.in_window(post, s)
                 if tw:
@@ -177,6 +181,10 @@ class Resolver:
             parts.append(f"semantically close to the abstract ({int(sig['semantic']*100)}%)")
         if "product" in sig:
             parts.append("names a product the session covers")
+        if "keyword" in sig:
+            parts.append("talks about the keynote while it is on stage")
+        if "on_stage" in sig:
+            parts.append("reacts to an announcement made on this stage")
         if sig.get("time") == 1.0 and post.get("ts_exact"):
             t = datetime.fromisoformat(post["ts"]); st = datetime.fromisoformat(s["start_utc"])
             dm = int((t - st).total_seconds() // 60)
@@ -210,7 +218,21 @@ class Resolver:
                     chosen += [c for c in cands[1:3] if "author" in c["signals"] and c["score"] >= THRESHOLD]
             mentions = sorted({sp["id"] for s in self.sessions for sp in self.session_speakers[s["id"]] if self.mentioned(tn, sp)})
             author_of = sorted({sp["id"] for s in self.sessions for sp in self.session_speakers[s["id"]] if self.author_matches(post, sp)})
-            anns = [a["id"] for a, phrases in ann_phrases if phrases and any(f" {ph} " in f" {tn} " for ph in phrases)]
+            # announcements: longest distinctive phrase wins; at most two per post
+            hits = []
+            for a, phrases in ann_phrases:
+                best = max((len(ph) for ph in phrases if f" {ph} " in f" {tn} "), default=0)
+                if best:
+                    hits.append((best, a["id"]))
+            anns = [aid for _, aid in sorted(hits, reverse=True)[:2]]
+            # announcements made from the stage: a post reacting to one, inside that keynote's slot, is about the keynote too
+            if anns and not chosen and post.get("ts_exact"):
+                for s in self.sessions:
+                    if ("keynote" in _norm(s["title"]) or s.get("type") == "Keynote") and self.in_window(post, s) == 1.0:
+                        a_ts = {a["id"]: a["ts"] for a in self.announcements}
+                        if any(abs(datetime.fromisoformat(a_ts[aid]).timestamp() - datetime.fromisoformat(s["start_utc"]).timestamp()) < 3 * 3600 for aid in anns if aid in a_ts):
+                            chosen = [{"session_id": s["id"], "score": 0.55, "signals": {"on_stage": 1.0, "time": 1.0}}]
+                        break
             links = []
             for u in post.get("links", []):
                 ul = u.lower()
