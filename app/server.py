@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Any
 
 import orjson
-from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi import FastAPI, HTTPException, Query, Request, Response
 from fastapi.responses import FileResponse, ORJSONResponse
 from fastapi.staticfiles import StaticFiles
 from sse_starlette.sse import EventSourceResponse
@@ -80,21 +80,33 @@ async def console():
 
 
 @app.get("/health")
-async def health():
-    """Liveness plus the two things an operator actually wants: is the graph reachable, and how fast."""
+async def health(response: Response):
+    """Liveness plus the two things an operator actually wants: is the graph reachable, and how fast.
+    Returns 503 when the graph is down so an HTTP check can act on the status code, not the body."""
     out = {"ok": True, "timelines": {}, "notes": {}}
     for p in config.TIMELINES.glob("*.json"):
+        try:  # a live pull may be mid-write; a torn file must not fail the probe
+            data = orjson.loads(p.read_bytes())
+        except Exception:
+            out.setdefault("warnings", []).append(f"{p.name}: unreadable right now")
+            continue
         if p.stem.endswith("_notes"):
-            out["notes"][p.stem[:-6]] = len(orjson.loads(p.read_bytes()))
+            out["notes"][p.stem[:-6]] = len(data)
         else:
-            out["timelines"][p.stem] = len(orjson.loads(p.read_bytes()).get("events", []))
-    try:
+            out["timelines"][p.stem] = len(data.get("events", []))
+
+    def ping():
         t0 = time.perf_counter()
         graphs = Graph("universe25").db.list_graphs()
-        out["graph"] = {"reachable": True, "graphs": graphs, "ping_ms": round((time.perf_counter() - t0) * 1000, 1)}
+        return graphs, round((time.perf_counter() - t0) * 1000, 1)
+
+    try:
+        graphs, ms = await asyncio.wait_for(asyncio.get_running_loop().run_in_executor(None, ping), timeout=5)
+        out["graph"] = {"reachable": True, "graphs": graphs, "ping_ms": ms}
     except Exception as e:  # pragma: no cover
         out["ok"] = False
-        out["graph"] = {"reachable": False, "error": str(e)[:200]}
+        out["graph"] = {"reachable": False, "error": str(e)[:200] or type(e).__name__}
+        response.status_code = 503
     return out
 
 
@@ -366,7 +378,9 @@ async def note(conf_id: str, body: dict):
         "author_of": [], "announcements": res["announcements"], "facets": res["facets"], "artifacts": res["artifacts"]}}
     notes = load_notes(conf_id)
     notes.append(ev)
-    notes_path(conf_id).write_bytes(orjson.dumps(notes))
+    tmp = notes_path(conf_id).with_suffix(".json.tmp")
+    tmp.write_bytes(orjson.dumps(notes))
+    os.replace(tmp, notes_path(conf_id))
     _live_bus.setdefault(conf_id, []).append(ev)
     return ev
 

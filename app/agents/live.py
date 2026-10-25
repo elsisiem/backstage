@@ -7,6 +7,7 @@ Bluesky via Unlocker). Everything is idempotent, so this can run every couple of
 from __future__ import annotations
 
 import json
+import os
 import time
 from datetime import datetime, timedelta, timezone
 
@@ -109,7 +110,9 @@ def pull_once(conf_id: str) -> dict:
     counts["linked"] += sum(1 for p in posts if res_by_post[p["id"]]["sessions"])
     counts["moments"] += len(moments)
     meta["clock"] = {"start": tl["events"][0]["t"], "end": tl["events"][-1]["t"]} if tl["events"] else meta.get("clock")
-    tl_path.write_text(json.dumps(tl, ensure_ascii=False), encoding="utf-8")
+    tmp = tl_path.with_suffix(".json.tmp")
+    tmp.write_text(json.dumps(tl, ensure_ascii=False), encoding="utf-8")
+    os.replace(tmp, tl_path)  # atomic on POSIX and Windows; readers never see a torn file
     return {"pulled": len(raw), "new": len(posts), "linked": counts["linked"], "moments_added": len(moments), "llm_calls": resolver.llm_calls}
 
 
