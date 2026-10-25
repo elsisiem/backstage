@@ -40,6 +40,22 @@ def exa_recent(conf: dict, since_iso: str, until_iso: str) -> list[dict]:
     return out
 
 
+_resolvers: dict[str, Resolver] = {}
+
+
+def get_resolver(conf_id: str) -> Resolver:
+    """One Resolver per conference, shared by the server and the live loop, so session embeddings are computed once."""
+    if conf_id not in _resolvers:
+        sessions, speakers = load_agenda(conf_id)
+        r = Resolver(sessions, speakers, load_announcements(conf_id), use_llm=True)
+        try:
+            r.prepare()
+        except Exception:
+            r.use_llm = False
+        _resolvers[conf_id] = r
+    return _resolvers[conf_id]
+
+
 def pull_once(conf_id: str) -> dict:
     conf = config.CONFERENCES[conf_id]
     now = datetime.now(timezone.utc)
@@ -64,9 +80,8 @@ def pull_once(conf_id: str) -> dict:
     if not posts:
         return {"pulled": 0, "new": 0}
 
-    sessions, speakers = load_agenda(conf_id)
-    announcements = load_announcements(conf_id)
-    resolver = Resolver(sessions, speakers, announcements, use_llm=True)
+    resolver = get_resolver(conf_id)
+    sessions, announcements = resolver.sessions, resolver.announcements
     resolutions = resolver.resolve_all(posts)
     res_by_post = {r["post_id"]: r for r in resolutions}
     kw = [h.lower().lstrip("#") for h in conf["hashtags"]]
