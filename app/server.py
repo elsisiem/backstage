@@ -81,11 +81,20 @@ async def console():
 
 @app.get("/health")
 async def health():
-    out = {"ok": True, "timelines": sorted(p.stem for p in config.TIMELINES.glob("*.json"))}
+    """Liveness plus the two things an operator actually wants: is the graph reachable, and how fast."""
+    out = {"ok": True, "timelines": {}, "notes": {}}
+    for p in config.TIMELINES.glob("*.json"):
+        if p.stem.endswith("_notes"):
+            out["notes"][p.stem[:-6]] = len(orjson.loads(p.read_bytes()))
+        else:
+            out["timelines"][p.stem] = len(orjson.loads(p.read_bytes()).get("events", []))
     try:
-        out["graphs"] = Graph("universe25").db.list_graphs()
+        t0 = time.perf_counter()
+        graphs = Graph("universe25").db.list_graphs()
+        out["graph"] = {"reachable": True, "graphs": graphs, "ping_ms": round((time.perf_counter() - t0) * 1000, 1)}
     except Exception as e:  # pragma: no cover
-        out["graph_error"] = str(e)[:200]
+        out["ok"] = False
+        out["graph"] = {"reachable": False, "error": str(e)[:200]}
     return out
 
 
