@@ -64,9 +64,9 @@ def build_moments(posts: list[dict], resolutions: list[dict], sessions: list[dic
             ann_posts[aid].append(p)
     for a in announcements:
         plist = [p for p in ann_posts.get(a["id"], []) if 0 <= _ep(p["ts"]) - _ep(a["ts"]) <= 6 * 3600]
-        if len(plist) >= 2:
+        if len(plist) >= 3:
             moments.append({
-                "id": _mid("a", a["id"]), "kind": "wave", "ts": plist[min(1, len(plist) - 1)]["ts"], "announcement_id": a["id"],
+                "id": _mid("a", a["id"]), "kind": "wave", "ts": plist[min(2, len(plist) - 1)]["ts"], "announcement_id": a["id"],
                 "headline": f"“{a['title'][:70]}” is landing: {len(plist)} posts in the hours after it shipped",
                 "detail": a.get("summary", "")[:220], "score": len(plist) + 1, "evidence": [p["id"] for p in plist][:6],
                 "authors": sorted({(p.get("author") or p.get("handle") or "") for p in plist})[:6],

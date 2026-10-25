@@ -16,7 +16,7 @@ from typing import Any
 
 import orjson
 from fastapi import FastAPI, HTTPException, Query, Request
-from fastapi.responses import FileResponse, JSONResponse, ORJSONResponse
+from fastapi.responses import FileResponse, ORJSONResponse
 from fastapi.staticfiles import StaticFiles
 from sse_starlette.sse import EventSourceResponse
 
@@ -33,6 +33,18 @@ app.mount("/static", StaticFiles(directory=str(STATIC)), name="static")
 _timelines: dict[str, dict] = {}
 _graphs: dict[str, Graph] = {}
 _live_graphs: dict[str, Graph] = {}
+_resolvers: dict[str, Any] = {}
+# field notes reported from inside the venue, pushed to every open stream the moment they land
+_live_bus: dict[str, list[dict]] = {}
+
+
+def notes_path(conf_id: str) -> Path:
+    return config.TIMELINES / f"{conf_id}_notes.json"
+
+
+def load_notes(conf_id: str) -> list[dict]:
+    p = notes_path(conf_id)
+    return orjson.loads(p.read_bytes()) if p.exists() else []
 
 
 def timeline(conf_id: str) -> dict:
@@ -58,8 +70,13 @@ def live_graph(conf_id: str) -> Graph:
 
 # ----- pages ------------------------------------------------------------------------------
 @app.get("/")
-async def index():
-    return FileResponse(STATIC / "index.html")
+async def landing():
+    return FileResponse(STATIC / "landing.html")
+
+
+@app.get("/console")
+async def console():
+    return FileResponse(STATIC / "console.html")
 
 
 @app.get("/health")
@@ -157,17 +174,26 @@ async def stream(request: Request, conf_id: str, speed: float = Query(60.0, ge=1
         # catch-up summary for everything before the start point
         before = events[:idx]
         yield {"event": "catchup", "data": orjson.dumps({"posts": sum(1 for e in before if e["type"] == "post"), "moments": [e["moment"] for e in before if e["type"] == "moment"][-5:],
-                                                         "announcements": [e["announcement"] for e in before if e["type"] == "announcement"]}).decode()}
+                                                         "announcements": [e["announcement"] for e in before if e["type"] == "announcement"],
+                                                         "notes": load_notes(conf_id)[-20:]}).decode()}
         wall0 = time.time()
         clock0 = t_begin
         last_tick = 0.0
-        while idx < len(events):
+        bus = _live_bus.setdefault(conf_id, [])
+        bus_sent = len(bus)
+        while idx < len(events) or True:
             if await request.is_disconnected():
                 break
             now_clock = clock0 + (time.time() - wall0) * speed
             if time.time() - last_tick > 1.0:
                 last_tick = time.time()
                 yield {"event": "tick", "data": orjson.dumps({"clock": int(now_clock)}).decode()}
+            while bus_sent < len(bus):  # field notes reported from the venue, delivered immediately
+                yield {"event": "note", "data": orjson.dumps(bus[bus_sent]).decode()}
+                bus_sent += 1
+            if idx >= len(events):
+                await asyncio.sleep(0.5)
+                continue
             ev = events[idx]
             if ev["t"] <= now_clock:
                 if lg is not None and not mirror_q.full():
@@ -269,6 +295,76 @@ async def repo(conf_id: str, body: dict):
     await loop.run_in_executor(None, g.add_repo, info["url"], info["name"], info["facets"])
     matches = await loop.run_in_executor(None, g.for_repo, info["url"], conf_id)
     return {"repo": info, **matches}
+
+
+# ----- field notes: people inside the venue reporting for everyone who is not ------------------
+def _resolver(conf_id: str):
+    if conf_id not in _resolvers:
+        from app.agents.resolver import Resolver
+        from app.ingest.githubblog import load_announcements
+        from app.ingest.rainfocus import load as load_agenda
+
+        sessions, speakers = load_agenda(conf_id)
+        r = Resolver(sessions, speakers, load_announcements(conf_id), use_llm=True)
+        try:
+            r.prepare()
+        except Exception:
+            r.use_llm = False
+        _resolvers[conf_id] = r
+    return _resolvers[conf_id]
+
+
+@app.post("/api/conf/{conf_id}/note")
+async def note(conf_id: str, body: dict):
+    """A one-line report from inside a room. Becomes a Post in the graph, resolved like any other, and is
+    pushed to every open console. No account needed: this is the nudge that makes the layer two-sided."""
+    import hashlib
+
+    text = (body.get("text") or "").strip()[:600]
+    if len(text) < 3:
+        raise HTTPException(400, "say something")
+    handle = (body.get("handle") or "someone in the room").strip()[:60]
+    session_id = (body.get("session_id") or "").strip() or None
+    ts = datetime.now(timezone.utc)
+    meta = timeline(conf_id)["meta"]
+    by_session = {s["id"]: s for s in meta["sessions"]}
+    pid = "n_" + hashlib.sha1(f"{conf_id}|{ts.isoformat()}|{text}".encode()).hexdigest()[:10]
+    post = {"id": pid, "url": "", "platform": "backstage", "handle": handle, "author": handle, "text": text, "ts": ts.isoformat(),
+            "ts_exact": True, "day": ts.date().isoformat(), "kind": "note", "hashtags": [], "links": []}
+    loop = asyncio.get_running_loop()
+
+    def resolve_and_store():
+        r = _resolver(conf_id)
+        res = r.resolve_all([post])[0]
+        if session_id and session_id in by_session:
+            s = by_session[session_id]
+            res["sessions"] = [{"session_id": session_id, "confidence": 0.95, "signals": ["reported_from_room"],
+                                "reason": f"reported from {s['room'].split('@')[0].strip()} by {handle}"}]
+        g = graph(conf_id)
+        g.add_post(post)
+        for s in res["sessions"]:
+            g.link_post_session(pid, s["session_id"], s["confidence"], s["reason"], s["signals"])
+        for aid in res["announcements"]:
+            g.link_post_announcement(pid, aid)
+        if res["facets"]:
+            g.tag_post_facets(pid, res["facets"])
+        return res
+
+    res = await loop.run_in_executor(None, resolve_and_store)
+    ev = {"t": int(ts.timestamp()), "type": "note", "post": post, "resolve": {
+        "post_id": pid, "sessions": [{**s, "title": by_session[s["session_id"]]["title"], "room": by_session[s["session_id"]]["room"]} for s in res["sessions"] if s["session_id"] in by_session],
+        "mentions": [_resolver(conf_id).speakers[i]["name"] for i in res["mentions"] if i in _resolver(conf_id).speakers],
+        "author_of": [], "announcements": res["announcements"], "facets": res["facets"], "artifacts": res["artifacts"]}}
+    notes = load_notes(conf_id)
+    notes.append(ev)
+    notes_path(conf_id).write_bytes(orjson.dumps(notes))
+    _live_bus.setdefault(conf_id, []).append(ev)
+    return ev
+
+
+@app.get("/api/conf/{conf_id}/notes")
+async def notes(conf_id: str):
+    return load_notes(conf_id)[-50:]
 
 
 # ----- ask ------------------------------------------------------------------------------------
@@ -377,7 +473,30 @@ def _llm_answer(q: str, cols: list[str], rows: list[list[Any]]) -> str | None:
 async def live_pull(conf_id: str):
     from app.agents.live import pull_once
 
-    return await asyncio.get_running_loop().run_in_executor(None, pull_once, conf_id)
+    result = await asyncio.get_running_loop().run_in_executor(None, pull_once, conf_id)
+    _timelines.pop(conf_id, None)  # reload the appended timeline on next read
+    return result
+
+
+async def _live_loop():
+    """While a live-mode conference is in its date window, pull fresh posts every few minutes."""
+    from datetime import date
+
+    while True:
+        try:
+            today = date.today().isoformat()
+            for cid, c in config.CONFERENCES.items():
+                if c["mode"] == "live" and c["days"][0] <= today <= c["days"][-1] and (config.TIMELINES / f"{cid}.json").exists():
+                    await live_pull(cid)
+        except Exception:
+            pass
+        await asyncio.sleep(180)
+
+
+@app.on_event("startup")
+async def _start_live_loop():
+    if os.getenv("BACKSTAGE_LIVE", "1") == "1":
+        asyncio.create_task(_live_loop())
 
 
 if __name__ == "__main__":
