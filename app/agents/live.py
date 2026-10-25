@@ -7,7 +7,6 @@ Bluesky via Unlocker). Everything is idempotent, so this can run every couple of
 from __future__ import annotations
 
 import json
-import time
 from datetime import datetime, timedelta, timezone
 
 import httpx

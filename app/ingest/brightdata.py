@@ -18,7 +18,7 @@ import urllib.parse
 import httpx
 
 from app import config
-from app.ingest.posts import normalize_exa, post_id
+from app.ingest.posts import normalize_exa
 
 BD_DIR = config.CACHE / "brightdata"
 BD_DIR.mkdir(parents=True, exist_ok=True)
