@@ -7,6 +7,8 @@ Bluesky via Unlocker). Everything is idempotent, so this can run every couple of
 from __future__ import annotations
 
 import json
+import threading
+import time
 import time
 from datetime import datetime, timedelta, timezone
 
@@ -40,20 +42,31 @@ def exa_recent(conf: dict, since_iso: str, until_iso: str) -> list[dict]:
     return out
 
 
-_resolvers: dict[str, Resolver] = {}
+_resolvers: dict[str, tuple[Resolver, float]] = {}
+_resolver_lock = threading.Lock()
+RESOLVER_TTL = 15 * 60  # seconds; the agenda and announcement files can change during a live day
 
 
 def get_resolver(conf_id: str) -> Resolver:
-    """One Resolver per conference, shared by the server and the live loop, so session embeddings are computed once."""
-    if conf_id not in _resolvers:
-        sessions, speakers = load_agenda(conf_id)
-        r = Resolver(sessions, speakers, load_announcements(conf_id), use_llm=True)
+    """One Resolver per conference, shared by the server and the live loop.
+
+    Session embeddings are computed once (prepare() is idempotent). If embedding fails the resolver stays
+    LLM-enabled and simply retries on the next call instead of being cached in a degraded state. The instance
+    is rebuilt after RESOLVER_TTL so a refreshed agenda or new announcements are picked up without a restart.
+    """
+    with _resolver_lock:
+        cached = _resolvers.get(conf_id)
+        if cached and time.time() - cached[1] < RESOLVER_TTL:
+            r = cached[0]
+        else:
+            sessions, speakers = load_agenda(conf_id)
+            r = Resolver(sessions, speakers, load_announcements(conf_id), use_llm=True)
+            _resolvers[conf_id] = (r, time.time())
         try:
             r.prepare()
         except Exception:
-            r.use_llm = False
-        _resolvers[conf_id] = r
-    return _resolvers[conf_id]
+            pass  # rules-only this call; the next call retries the embeddings
+        return r
 
 
 def pull_once(conf_id: str) -> dict:
@@ -82,7 +95,9 @@ def pull_once(conf_id: str) -> dict:
 
     resolver = get_resolver(conf_id)
     sessions, announcements = resolver.sessions, resolver.announcements
+    calls_before = resolver.llm_calls
     resolutions = resolver.resolve_all(posts)
+    llm_calls_now = resolver.llm_calls - calls_before
     res_by_post = {r["post_id"]: r for r in resolutions}
     kw = [h.lower().lstrip("#") for h in conf["hashtags"]]
     posts = [p for p in posts if res_by_post[p["id"]]["sessions"] or res_by_post[p["id"]]["mentions"] or res_by_post[p["id"]]["announcements"]
@@ -125,7 +140,9 @@ def pull_once(conf_id: str) -> dict:
     counts["moments"] += len(moments)
     meta["clock"] = {"start": tl["events"][0]["t"], "end": tl["events"][-1]["t"]} if tl["events"] else meta.get("clock")
     tl_path.write_text(json.dumps(tl, ensure_ascii=False), encoding="utf-8")
-    return {"pulled": len(raw), "new": len(posts), "linked": counts["linked"], "moments_added": len(moments), "llm_calls": resolver.llm_calls}
+    linked_now = sum(1 for p in posts if res_by_post[p["id"]]["sessions"])
+    return {"pulled": len(raw), "new": len(posts), "linked": linked_now, "linked_total": counts["linked"], "moments_added": len(moments),
+            "llm_calls": llm_calls_now}
 
 
 if __name__ == "__main__":
