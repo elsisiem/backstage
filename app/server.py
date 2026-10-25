@@ -406,30 +406,50 @@ async def ask(conf_id: str, body: dict):
     q = (body.get("q") or "").strip()
     template = body.get("template")
     g = graph(conf_id)
-    cypher = None
-    if template in TEMPLATES:
-        cypher = TEMPLATES[template][1]
-        q = TEMPLATES[template][0]
-    elif config.OPENAI_API_KEY and q:
-        cypher = await asyncio.get_running_loop().run_in_executor(None, _llm_cypher, q)
-    if not cypher:
-        raise HTTPException(400, "no question, and no OpenAI key for free-form questions")
-    if not re.match(r"^\s*MATCH", cypher, re.I) or re.search(r"\b(CREATE|MERGE|DELETE|SET|REMOVE|DROP)\b", cypher, re.I):
-        raise HTTPException(400, "only read queries are allowed")
+    loop = asyncio.get_running_loop()
 
-    def run():
-        res = g.g.ro_query(cypher)
+    def run(cy: str):
+        res = g.g.ro_query(cy)
         cols = res.header and [h[1] for h in res.header] or []
         rows = [[_plain(v) for v in r] for r in res.result_set[:25]]
         return cols, rows
 
-    try:
-        cols, rows = await asyncio.get_running_loop().run_in_executor(None, run)
-    except Exception as e:
-        return {"q": q, "cypher": cypher, "error": str(e)[:300]}
+    def safe(cy: str | None) -> bool:
+        return bool(cy) and bool(re.match(r"^\s*MATCH", cy, re.I)) and not re.search(r"\b(CREATE|MERGE|DELETE|SET|REMOVE|DROP)\b", cy, re.I)
+
+    if template in TEMPLATES:
+        cypher = TEMPLATES[template][1]
+        q = TEMPLATES[template][0]
+        try:
+            cols, rows = await loop.run_in_executor(None, run, cypher)
+        except Exception as e:
+            return {"q": q, "cypher": cypher, "error": str(e)[:300]}
+    elif config.OPENAI_API_KEY and q:
+        # generate, run, and repair once or twice if the query errors or comes back empty
+        feedback, cypher, cols, rows, err = None, None, [], [], None
+        for _ in range(3):
+            cypher = await loop.run_in_executor(None, _llm_cypher, q, feedback)
+            if not safe(cypher):
+                feedback = "That was not a single read-only MATCH query. Output only one MATCH ... RETURN query."
+                continue
+            try:
+                cols, rows = await loop.run_in_executor(None, run, cypher)
+                err = None
+            except Exception as e:
+                err = str(e)[:300]
+                feedback = f"That query failed with: {err}. Fix it. Query:\n{cypher}"
+                continue
+            if rows:
+                break
+            feedback = (f"That query ran but returned zero rows. Loosen it: use toLower(x) CONTAINS 'word' instead of equality, "
+                        f"drop optional constraints, and check edge directions against the schema. Query:\n{cypher}")
+        if err:
+            return {"q": q, "cypher": cypher, "error": err}
+    else:
+        raise HTTPException(400, "no question, and no OpenAI key for free-form questions")
     answer = None
     if config.OPENAI_API_KEY and rows:
-        answer = await asyncio.get_running_loop().run_in_executor(None, _llm_answer, q, cols, rows)
+        answer = await loop.run_in_executor(None, _llm_answer, q, cols, rows)
     return {"q": q, "cypher": cypher, "columns": cols, "rows": rows, "answer": answer}
 
 
@@ -441,14 +461,36 @@ def _plain(v: Any) -> Any:
     return v
 
 
-def _llm_cypher(q: str) -> str | None:
+FEWSHOT = """
+Examples of good queries against this graph:
+-- posts in a room, with speakers
+MATCH (p:Post)-[:ABOUT_SESSION]->(s:Session) WHERE toLower(s.room) CONTAINS 'bats'
+OPTIONAL MATCH (s)-[:PRESENTED_BY]->(sp:Speaker)
+RETURN s.title AS session, collect(DISTINCT sp.name) AS speakers, count(DISTINCT p) AS posts ORDER BY posts DESC LIMIT 12
+-- what people said about a topic during the keynote
+MATCH (p:Post)-[:ABOUT_SESSION]->(s:Session) WHERE toLower(s.title) CONTAINS 'keynote' AND toLower(p.text) CONTAINS 'mcp'
+RETURN p.author AS who, p.platform AS platform, left(p.text, 160) AS said, p.ts AS at ORDER BY p.ts LIMIT 12
+-- announcements reacted to, with facets
+MATCH (p:Post)-[:ABOUT_ANNOUNCEMENT]->(a:Announcement)-[:AFFECTS]->(f:Facet)
+RETURN a.title AS announcement, collect(DISTINCT f.name) AS touches, count(DISTINCT p) AS reactions ORDER BY reactions DESC LIMIT 10
+Rules: edge directions are exactly as in the schema (Session -[:IN_ROOM]-> Room, Day -[:HAS_SESSION]-> Session, Post -[:BY]-> Author);
+sessions also carry s.room and s.day as strings, so prefer string CONTAINS filters over extra hops; always use toLower() for text filters;
+no comments in the query; one statement only; no APOC.
+"""
+
+
+def _llm_cypher(q: str, feedback: str | None = None) -> str | None:
     from app.llm import chat
 
-    prompt = (f"You write Cypher for FalkorDB (openCypher; no APOC; use toLower(); lists with collect()).\nSchema:{SCHEMA_DOC}\n"
+    prompt = (f"You write Cypher for FalkorDB (openCypher).\nSchema:{SCHEMA_DOC}\n{FEWSHOT}\n"
               f"Write ONE read-only MATCH query that answers: \"{q}\". Return at most 12 rows with readable column aliases. Output only the query.")
+    if feedback:
+        prompt += f"\n\nFeedback on your previous attempt: {feedback}"
     try:
-        text = chat(prompt, max_tokens=600)
-        return re.sub(r"^```(?:cypher)?|```$", "", text, flags=re.M).strip() or None
+        text = chat(prompt, max_tokens=700)
+        text = re.sub(r"^```(?:cypher)?|```$", "", text, flags=re.M).strip()
+        text = re.sub(r"//.*$", "", text, flags=re.M).strip()
+        return text or None
     except Exception:
         return None
 
