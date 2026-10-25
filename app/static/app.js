@@ -94,7 +94,7 @@
   }
 
   async function health() {
-    try { const h = await (await fetch('/health')).json(); setStatus('st-graph', h.graphs ? `CONNECTED · ${h.graphs.length} GRAPHS` : 'UNREACHABLE', h.graphs ? 'ok' : ''); }
+    try { const h = await (await fetch('/health')).json(); const g = h.graph || {}; setStatus('st-graph', g.reachable ? `CONNECTED · ${(g.graphs || []).length} GRAPHS · ${g.ping_ms} MS` : 'UNREACHABLE', g.reachable ? 'ok' : ''); }
     catch { setStatus('st-graph', 'UNREACHABLE'); }
   }
   function setStatus(id, text, cls = '') { const el = $('#' + id); el.textContent = `[${text}]`; el.className = cls; }
