@@ -2,6 +2,8 @@
 (() => {
   const $ = (s, el = document) => el.querySelector(s);
   const $$ = (s, el = document) => [...el.querySelectorAll(s)];
+  const reduceMotion = () => window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const scrollBehavior = () => (reduceMotion() ? 'auto' : 'smooth');
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const tag = (t, cls = '') => `<em class="tag ${cls}">[${esc(t)}]</em>`;
   const fmtTime = (epoch, tz) => new Intl.DateTimeFormat('en-US', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: tz }).format(new Date(epoch * 1000));
@@ -49,8 +51,9 @@
   function toggleExpand(sel, force) {
     const card = $(sel); if (!card) return;
     const on = force ?? !card.classList.contains('expanded');
-    $$('.card.expanded').forEach((c) => { c.classList.remove('expanded'); const b = c.querySelector('.xp'); if (b) b.textContent = 'EXPAND'; });
-    if (on) { card.classList.add('expanded'); const b = card.querySelector('.xp'); if (b) b.textContent = 'CLOSE'; }
+    const relabel = (c, expanded) => { const b = c.querySelector('.xp'); if (!b) return; b.textContent = expanded ? 'CLOSE' : 'EXPAND'; const base = (b.getAttribute('aria-label') || '').replace(/^(Expand|Collapse) /, ''); b.setAttribute('aria-label', (expanded ? 'Collapse ' : 'Expand ') + base); b.setAttribute('aria-expanded', String(expanded)); };
+    $$('.card.expanded').forEach((c) => { c.classList.remove('expanded'); relabel(c, false); });
+    if (on) { card.classList.add('expanded'); relabel(card, true); }
     document.body.classList.toggle('has-expanded', on);
     setTimeout(() => { const el = $('#graph'); S.g.width(el.clientWidth).height(el.clientHeight); if (!S.userZoomed && S.gd.nodes.length) S.g.zoomToFit(300, 36); }, 230);
   }
@@ -77,7 +80,7 @@
     $$('#nav button').forEach((b) => b.classList.remove('on'));
     $$('i', tourEls.track).forEach((d, k) => { d.className = k < i ? 'done' : k === i ? 'on' : ''; });
     const target = $(st.t);
-    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    target.scrollIntoView({ behavior: scrollBehavior(), block: 'center' });
     tourEls.card.innerHTML = `<span class="lbl">STEP ${String(i + 1).padStart(2, '0')} / ${String(TOUR.length).padStart(2, '0')}</span><h3>${esc(st.title)}</h3><p>${esc(st.text)}</p><div class="row"><button class="btn" data-tb="back" ${i === 0 ? 'disabled' : ''}>BACK</button><button class="btn primary" data-tb="next">${i === TOUR.length - 1 ? 'FINISH' : 'NEXT'}</button><span class="sp">ESC TO LEAVE</span></div>`;
     $$('[data-tb]', tourEls.card).forEach((b) => (b.onclick = () => tourStep(b.dataset.tb === 'back' ? i - 1 : i + 1)));
     setTimeout(() => {
@@ -393,6 +396,7 @@
       const floating = S.gd.nodes.filter((n) => n.type === 'post' && !n.linked);
       if (floating.length > 160) { const drop = new Set(floating.slice(0, floating.length - 160).map((n) => n.id)); S.gd.nodes = S.gd.nodes.filter((n) => !drop.has(n.id)); drop.forEach((id) => S.nodeIx.delete(id)); S.gd.links = S.gd.links.filter((l) => !drop.has(l.source.id || l.source) && !drop.has(l.target.id || l.target)); }
       S.g.graphData({ nodes: [...S.gd.nodes], links: [...S.gd.links] }); renderCounters();
+      const sr = $('#graph-sr'); if (sr) sr.innerHTML = S.gd.nodes.filter((n) => ['session', 'moment', 'ann', 'speaker'].includes(n.type)).slice(-24).map((n) => `<li>${esc(n.type)}: ${esc(n.label)}</li>`).join('');
     }, 120);
   }
 
@@ -496,7 +500,7 @@
     $$('#nav button').forEach((b) => b.classList.toggle('on', b.dataset.go === where));
     const map = { now: '#now', rooms: '#rooms-card', graph: '#graph-card', moments: '#side', wire: '#side', ask: '#side', mine: '#mine', guide: '#guide' };
     if (['moments', 'wire', 'ask', 'agents'].includes(where)) setTab(where);
-    const el = $(map[where] || '#now'); if (el) el.scrollIntoView({ behavior: 'smooth', block: where === 'now' ? 'start' : 'nearest' });
+    const el = $(map[where] || '#now'); if (el) el.scrollIntoView({ behavior: scrollBehavior(), block: where === 'now' ? 'start' : 'nearest' });
   }
   function setTab(t) { $$('#tabs button').forEach((x) => x.classList.toggle('on', x.dataset.tab === t)); $$('.tabpane').forEach((p) => p.classList.toggle('on', p.id === 'tab-' + t)); }
 

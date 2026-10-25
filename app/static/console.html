@@ -31,7 +31,7 @@
       <button data-go="guide" data-tour="1"><i>08</i><span>Guided tour</span></button>
     </nav>
 
-    <div class="status" id="status">
+    <div class="status" id="status" role="status" aria-live="polite">
       <div class="st"><span>STREAM</span><em id="st-stream">[IDLE]</em></div>
       <div class="st"><span>GRAPH</span><em id="st-graph">[CHECKING]</em></div>
       <div class="st"><span>LIVE LOOP</span><em id="st-live">[ARMED]</em></div>
@@ -87,8 +87,8 @@
 
       <section class="row2">
         <article class="card now" id="now">
-          <header class="card-h"><h2>RIGHT NOW ACROSS THE VENUE</h2><div class="row"><em class="tag" id="now-tag">[WAITING FOR THE CLOCK]</em> <button class="xp" data-expand="#now">EXPAND</button></div></header>
-          <div class="now-head" id="now-head">Press play. The venue summarizes itself before you look at any one room.</div>
+          <header class="card-h"><h2>RIGHT NOW ACROSS THE VENUE</h2><div class="row"><em class="tag" id="now-tag">[WAITING FOR THE CLOCK]</em> <button class="xp" data-expand="#now" aria-label="Expand the venue summary">EXPAND</button></div></header>
+          <div class="now-head" id="now-head" aria-live="polite">Press play. The venue summarizes itself before you look at any one room.</div>
           <ul class="digest" id="digest"></ul>
         </article>
         <article class="card report" id="report">
@@ -105,16 +105,17 @@
 
       <section class="grid3" id="grid3">
         <article class="card rooms" id="rooms-card">
-          <header class="card-h"><h2>ROOMS, RIGHT NOW</h2><div class="row"><small id="rooms-sub">waiting for the clock</small> <button class="xp" data-expand="#rooms-card">EXPAND</button></div></header>
+          <header class="card-h"><h2>ROOMS, RIGHT NOW</h2><div class="row"><small id="rooms-sub">waiting for the clock</small> <button class="xp" data-expand="#rooms-card" aria-label="Expand the rooms panel">EXPAND</button></div></header>
           <div class="card-b" id="rooms"></div>
         </article>
 
         <article class="card graphcard" id="graph-card">
-          <header class="card-h"><h2>THE GRAPH <button class="xp" data-expand="#graph-card">EXPAND</button></h2>
+          <header class="card-h"><h2>THE GRAPH <button class="xp" data-expand="#graph-card" aria-label="Expand the graph">EXPAND</button></h2>
             <div class="legend"><span><i style="background:#111318"></i>session</span><span><i style="background:#1d4ed8"></i>speaker</span><span><i style="background:#60a5fa"></i>bluesky</span><span><i style="background:#64748b"></i>linkedin</span><span><i style="background:#d97706"></i>announcement</span><span><i style="background:#ff4f00"></i>moment / note</span><span><i style="background:#0f766e"></i>facet</span></div>
           </header>
           <div class="graph-wrap">
-            <div id="graph"></div>
+            <div id="graph" role="img" aria-label="Force-directed graph of sessions, speakers, posts, announcements and moments" aria-describedby="graph-sr"></div>
+            <ul id="graph-sr" class="sr-only" aria-label="Nodes currently in the graph"></ul>
             <div class="graph-empty" id="graph-empty"><b>[NO SIGNAL YET]</b><span>Press play. The graph builds itself from the public internet as the day unfolds. Click any node for the path behind it.</span></div>
             <div class="detail" id="detail" hidden><button class="close" id="detail-close" aria-label="close">&times;</button><div id="detail-body"></div></div>
           </div>
@@ -122,7 +123,7 @@
 
         <article class="card side" id="side">
           <div class="tabs" id="tabs">
-            <button data-tab="agents" class="on">AGENTS</button><button data-tab="moments">MOMENTS <b id="t-moments">0</b></button><button data-tab="wire">WIRE <b id="t-wire">0</b></button><button data-tab="ask">ASK</button><button class="xp" data-expand="#side" style="flex:0;margin:8px 6px">EXPAND</button>
+            <button data-tab="agents" class="on">AGENTS</button><button data-tab="moments">MOMENTS <b id="t-moments">0</b></button><button data-tab="wire">WIRE <b id="t-wire">0</b></button><button data-tab="ask">ASK</button><button class="xp" data-expand="#side" style="flex:0;margin:8px 6px" aria-label="Expand the agents panel">EXPAND</button>
           </div>
           <div class="tabpane on" id="tab-agents"><div class="log" id="log"></div></div>
           <div class="tabpane" id="tab-moments"><div class="cards" id="moments"><div class="empty">Moments appear when several people post about one room inside a short window, or when an announcement starts landing.</div></div></div>
