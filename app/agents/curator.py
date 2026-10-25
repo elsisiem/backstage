@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import hashlib
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import datetime
 
 WINDOW = 30 * 60       # seconds
 COOLDOWN = 45 * 60     # per-session gap between moments

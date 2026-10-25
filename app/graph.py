@@ -6,8 +6,7 @@ carries the reason it exists so the UI can show why.
 """
 from __future__ import annotations
 
-import time
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any
 
 from falkordb import FalkorDB

@@ -8,7 +8,6 @@ from __future__ import annotations
 import hashlib
 import json
 import re
-import urllib.request
 from datetime import datetime, timezone
 
 from app.config import CACHE
