@@ -126,8 +126,6 @@ def pull_once(conf_id: str) -> dict:
                                "mentions": [resolver.speakers[i]["name"] for i in r["mentions"] if i in resolver.speakers],
                                "author_of": [resolver.speakers[i]["name"] for i in r["author_of"] if i in resolver.speakers],
                                "announcements": r["announcements"], "facets": r["facets"], "artifacts": r["artifacts"]})
-    all_posts = [e["post"] for e in tl["events"] + new_events if e["type"] == "post"]
-    all_res = [r for r in resolutions] + []
     moments = build_moments([p for p in posts], resolutions, sessions, announcements)
     for m in moments:
         g.add_moment(m)

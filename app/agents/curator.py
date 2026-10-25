@@ -26,7 +26,6 @@ def _mid(*parts: str) -> str:
 
 
 def build_moments(posts: list[dict], resolutions: list[dict], sessions: list[dict], announcements: list[dict]) -> list[dict]:
-    by_id = {p["id"]: p for p in posts}
     sess = {s["id"]: s for s in sessions}
     res_by_post = {r["post_id"]: r for r in resolutions}
     exact = [p for p in posts if p.get("ts_exact") and p.get("ts")]

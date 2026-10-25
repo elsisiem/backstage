@@ -8,6 +8,8 @@
 <link rel="stylesheet" href="/static/fonts/fonts.css">
 <link rel="stylesheet" href="/static/styles.css">
 <link rel="icon" type="image/svg+xml" href="/static/logo.svg">
+<link rel="preload" href="/static/fonts/JetBrainsMono.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/static/fonts/Inter.woff2" as="font" type="font/woff2" crossorigin>
 <script>try{var t=localStorage.getItem('bs-theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}</script>
 </head>
 <body>
@@ -15,8 +17,8 @@
 
   <aside class="sidebar" id="sidebar" aria-label="navigation">
     <div class="brand">
-      <svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><rect x="3" y="3" width="26" height="26" rx="3" fill="currentColor"/><path d="M8 20h16" stroke="var(--canvas)" stroke-width="2"/><path d="M11 20v5M21 20v5" stroke="var(--canvas)" stroke-width="2"/><circle cx="16" cy="12" r="3.2" fill="var(--accent)"/></svg>
-      <span class="brand-name">BACKSTAGE</span>
+      <a href="/" aria-label="Backstage home"><svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><rect x="3" y="3" width="26" height="26" rx="3" fill="currentColor"/><path d="M8 20h16" stroke="var(--surface)" stroke-width="2"/><path d="M11 20v5M21 20v5" stroke="var(--surface)" stroke-width="2"/><circle cx="16" cy="12" r="3.2" fill="var(--accent)"/></svg>
+      <span class="brand-name">Backstage</span></a>
       <button class="collapse" id="collapse" title="collapse sidebar" aria-label="collapse sidebar">&laquo;</button>
     </div>
 
@@ -28,7 +30,8 @@
       <button data-go="wire"><i>05</i><span>Wire</span><b id="n-wire">0</b></button>
       <button data-go="ask"><i>06</i><span>Ask the graph</span></button>
       <button data-go="mine"><i>07</i><span>Your Backstage</span></button>
-      <button data-go="guide" data-tour="1"><i>08</i><span>Guided tour</span></button>
+      <div class="sep" aria-hidden="true"></div>
+      <a href="/tour"><i>&rarr;</i><span>Take the tour</span></a>
     </nav>
 
     <div class="status" id="status" role="status" aria-live="polite">
@@ -39,10 +42,10 @@
     </div>
 
     <div class="side-foot">
-      <label class="lbl" for="conf-select">CONFERENCE</label>
+      <label class="lbl" for="conf-select">Conference</label>
       <select id="conf-select" class="select"></select>
-      <div class="theme"><span>THEME</span><div class="seg" id="theme-seg"><button data-theme="light">LIGHT</button><button data-theme="dark">DARK</button></div></div>
-      <div class="side-links"><a href="/">home</a><span>&middot;</span><a href="https://github.com/elsisiem/backstage" target="_blank" rel="noopener">source</a><span>&middot;</span><a href="#" data-tour="1">tour</a></div>
+      <div class="theme"><span class="lbl">Theme</span><div class="seg" id="theme-seg"><button data-theme="light">Light</button><button data-theme="dark">Dark</button></div></div>
+      <div class="side-links"><a href="/">Home</a><span>&middot;</span><a href="/tour">Tour</a><span>&middot;</span><a href="https://github.com/elsisiem/backstage" target="_blank" rel="noopener">Source</a></div>
     </div>
   </aside>
 
@@ -51,12 +54,12 @@
       <div class="tb-left">
         <span class="conf-name" id="conf-name">&mdash;</span>
         <div class="clock"><span id="clock-day">&mdash;</span><b id="clock-time">--:--</b><span class="tz" id="clock-tz">PT</span></div>
-        <em class="tag" id="mode-tag">[REPLAY]</em>
+        <em class="tag" id="mode-tag">Replay</em>
       </div>
       <div class="tb-mid">
-        <button class="btn primary" id="btn-play">PLAY</button>
+        <button class="btn primary" id="btn-play">Play</button>
         <div class="seg" id="speeds"><button data-speed="30">30x</button><button data-speed="120" class="on">120x</button><button data-speed="600">600x</button></div>
-        <div class="seg" id="jumps"><button data-jump="day1">DAY 1 08:30</button><button data-jump="keynote">KEYNOTE</button><button data-jump="day1pm">DAY 1 14:00</button><button data-jump="day2">DAY 2</button></div>
+        <div class="seg" id="jumps"><button data-jump="day1">Day 1 08:30</button><button data-jump="keynote">Keynote</button><button data-jump="day1pm">Day 1 14:00</button><button data-jump="day2">Day 2</button></div>
       </div>
       <div class="tb-right counters">
         <div><b id="c-posts">0</b><span>POSTS</span></div>
@@ -68,13 +71,9 @@
     </header>
 
     <main class="content">
-      <section class="masthead" id="masthead">
-        <h1>The live layer for everyone <span>who is not in the room.</span></h1>
-        <p>Every conference has eight rooms and you are in one. Every conference has ten thousand people who care and a thousand who came. Backstage resolves the public internet to the agenda as it happens, into a graph you can question.</p>
-      </section>
 
       <section class="flow" id="flow" aria-label="data flow">
-        <div class="stage"><span class="lbl">01 PUBLIC INTERNET</span><b id="f-sources">Bluesky &middot; LinkedIn &middot; X &middot; github.blog</b><small>discovery: Exa &middot; hard-to-get data: Bright Data</small></div>
+        <div class="stage"><span class="lbl">01 PUBLIC INTERNET</span><b id="f-sources">Bluesky &middot; LinkedIn &middot; X &middot; github.blog</b><small>Exa discovery &middot; Bright Data for the hard parts</small></div>
         <i class="arrow" aria-hidden="true"></i>
         <div class="stage"><span class="lbl">02 LISTENER</span><b id="f-ingested">0 ingested</b><small>exact timestamps from post IDs</small></div>
         <i class="arrow" aria-hidden="true"></i>
@@ -87,17 +86,17 @@
 
       <section class="row2">
         <article class="card now" id="now">
-          <header class="card-h"><h2>RIGHT NOW ACROSS THE VENUE</h2><div class="row"><em class="tag" id="now-tag">[WAITING FOR THE CLOCK]</em> <button class="xp" data-expand="#now" aria-label="Expand the venue summary">EXPAND</button></div></header>
+          <header class="card-h"><h2>Right now across the venue</h2><div class="row"><em class="tag" id="now-tag">Waiting for the clock</em><button class="xp" data-expand="#now" aria-label="Expand the venue summary">Expand</button></div></header>
           <div class="now-head" id="now-head" aria-live="polite">Press play. The venue summarizes itself before you look at any one room.</div>
           <ul class="digest" id="digest"></ul>
         </article>
         <article class="card report" id="report">
-          <header class="card-h"><h2>REPORT FROM THE ROOM</h2><em class="tag">[NO ACCOUNT NEEDED]</em></header>
+          <header class="card-h"><h2>Report from the room</h2><em class="tag">No account needed</em></header>
           <p class="hint">You are in one room. Ten thousand people are not. One line from you lands in the graph for all of them, resolved and attributed like any post.</p>
           <form id="note-form" class="note-form">
             <select id="note-session" class="select"><option value="">Which room are you in?</option></select>
-            <input id="note-text" placeholder="What just happened? A demo, a number, a link, a question the speaker dodged." maxlength="600" autocomplete="off">
-            <div class="note-row"><input id="note-handle" placeholder="name or handle (optional)" maxlength="60" autocomplete="off"><button class="btn primary" id="note-send">SEND TO EVERYONE</button></div>
+            <input id="note-text" placeholder="What just happened in the room?" maxlength="600" autocomplete="off">
+            <div class="note-row"><input id="note-handle" placeholder="name or handle (optional)" maxlength="60" autocomplete="off"><button class="btn primary" id="note-send">Send to everyone</button></div>
           </form>
           <div class="note-ok" id="note-ok" hidden></div>
         </article>
@@ -105,25 +104,25 @@
 
       <section class="grid3" id="grid3">
         <article class="card rooms" id="rooms-card">
-          <header class="card-h"><h2>ROOMS, RIGHT NOW</h2><div class="row"><small id="rooms-sub">waiting for the clock</small> <button class="xp" data-expand="#rooms-card" aria-label="Expand the rooms panel">EXPAND</button></div></header>
+          <header class="card-h"><h2>Rooms</h2><div class="row"><small id="rooms-sub">waiting for the clock</small><button class="xp" data-expand="#rooms-card" aria-label="Expand the rooms panel">Expand</button></div></header>
           <div class="card-b" id="rooms"></div>
         </article>
 
         <article class="card graphcard" id="graph-card">
-          <header class="card-h"><h2>THE GRAPH <button class="xp" data-expand="#graph-card" aria-label="Expand the graph">EXPAND</button></h2>
+          <header class="card-h"><h2>The graph <button class="xp" data-expand="#graph-card" aria-label="Expand the graph">Expand</button></h2>
             <div class="legend"><span><i style="background:#111318"></i>session</span><span><i style="background:#1d4ed8"></i>speaker</span><span><i style="background:#60a5fa"></i>bluesky</span><span><i style="background:#64748b"></i>linkedin</span><span><i style="background:#d97706"></i>announcement</span><span><i style="background:#ff4f00"></i>moment / note</span><span><i style="background:#0f766e"></i>facet</span></div>
           </header>
           <div class="graph-wrap">
             <div id="graph" role="img" aria-label="Force-directed graph of sessions, speakers, posts, announcements and moments" aria-describedby="graph-sr"></div>
             <ul id="graph-sr" class="sr-only" aria-label="Nodes currently in the graph"></ul>
-            <div class="graph-empty" id="graph-empty"><b>[NO SIGNAL YET]</b><span>Press play. The graph builds itself from the public internet as the day unfolds. Click any node for the path behind it.</span></div>
+            <div class="graph-empty" id="graph-empty"><b>No signal yet</b><span>Press play. The graph builds itself from the public internet as the day unfolds. Click any node for the path behind it.</span></div>
             <div class="detail" id="detail" hidden><button class="close" id="detail-close" aria-label="close">&times;</button><div id="detail-body"></div></div>
           </div>
         </article>
 
         <article class="card side" id="side">
           <div class="tabs" id="tabs">
-            <button data-tab="agents" class="on">AGENTS</button><button data-tab="moments">MOMENTS <b id="t-moments">0</b></button><button data-tab="wire">WIRE <b id="t-wire">0</b></button><button data-tab="ask">ASK</button><button class="xp" data-expand="#side" style="flex:0;margin:8px 6px" aria-label="Expand the agents panel">EXPAND</button>
+            <button data-tab="agents" class="on">Agents</button><button data-tab="moments">Moments <b id="t-moments">0</b></button><button data-tab="wire">Wire <b id="t-wire">0</b></button><button data-tab="ask">Ask</button><button class="xp" data-expand="#side" aria-label="Expand the agents panel">Expand</button>
           </div>
           <div class="tabpane on" id="tab-agents"><div class="log" id="log"></div></div>
           <div class="tabpane" id="tab-moments"><div class="cards" id="moments"><div class="empty">Moments appear when several people post about one room inside a short window, or when an announcement starts landing.</div></div></div>
@@ -131,7 +130,7 @@
           <div class="tabpane" id="tab-ask">
             <div class="ask">
               <div class="chips" id="ask-chips"></div>
-              <form id="ask-form"><input id="ask-input" placeholder="Ask anything about the conference" autocomplete="off"><button class="btn primary">ASK</button></form>
+              <form id="ask-form"><input id="ask-input" placeholder="Ask anything about the conference" autocomplete="off"><button class="btn primary">Ask</button></form>
               <div id="ask-out"></div>
             </div>
           </div>
@@ -139,29 +138,17 @@
       </section>
 
       <section class="card mine" id="mine">
-        <header class="card-h"><h2>YOUR BACKSTAGE</h2><small>paste a public GitHub repo. Which sessions and announcements touch your stack, and the path that says why.</small></header>
-        <form class="repo-form" id="repo-form"><input id="repo-input" placeholder="https://github.com/owner/repo" value="https://github.com/falkordb/falkordb"><button class="btn primary">BUILD MINE</button></form>
+        <header class="card-h"><h2>Your Backstage</h2><small>Paste a public GitHub repo: the sessions and announcements that touch your stack, and the path that says why.</small></header>
+        <form class="repo-form" id="repo-form"><input id="repo-input" placeholder="https://github.com/owner/repo" value="https://github.com/falkordb/falkordb"><button class="btn primary">Build mine</button></form>
         <div class="yours-out" id="yours-out"><div class="empty">Nothing built yet.</div></div>
       </section>
 
-      <section class="card guide" id="guide">
-        <header class="card-h"><h2>DEMO GUIDE</h2><div class="row"><small>six steps, under three minutes. Each one runs from here, or </small> <button class="btn primary" data-tour="1" style="margin-left:8px">START THE GUIDED TOUR</button></div></header>
-        <ol class="steps" id="steps">
-          <li><span class="lbl">STEP 01</span><b>Start the keynote replay.</b><p>Day 1 of GitHub Universe 2025 at 08:55, two hours per minute. The rooms, the clock and the counters are the real day, recovered from post IDs.</p><button class="btn" data-step="play">RUN</button></li>
-          <li><span class="lbl">STEP 02</span><b>Read the venue, not a room.</b><p>The card at the top summarizes every room at once: who is loud, what shipped, what you missed. Then look at one room.</p><button class="btn" data-step="now">RUN</button></li>
-          <li><span class="lbl">STEP 03</span><b>Ask the graph why.</b><p>Click a post under the keynote. The placement is a path: author is the speaker, posted minutes into the slot, reacting to an announcement made on that stage.</p><button class="btn" data-step="why">RUN</button></li>
-          <li><span class="lbl">STEP 04</span><b>Build your Backstage.</b><p>A repo's manifests become facets. Repo to facet to announcement, repo to facet to session: two hops, with evidence.</p><button class="btn" data-step="mine">RUN</button></li>
-          <li><span class="lbl">STEP 05</span><b>Ask in plain words.</b><p>Which speakers posted about their own session, what overlapped with the loudest talk, which sessions were live only. Templated and free-form questions compile to read-only Cypher.</p><button class="btn" data-step="ask">RUN</button></li>
-          <li><span class="lbl">STEP 06</span><b>Report from the room.</b><p>One line from inside a room reaches everyone outside it, resolved and attributed, live. That is what makes the layer two-sided.</p><button class="btn" data-step="note">RUN</button></li>
-        </ol>
-      </section>
-
-      <footer class="foot">Built at Patch the Conference, San Francisco, 24 October 2026. Graph: FalkorDB. Hard-to-get data: Bright Data. Discovery: Exa. Timestamps are recovered from platform post IDs, so the replay is the real minute-by-minute day. Keys: <kbd>space</kbd> play/pause · <kbd>esc</kbd> close · <kbd>?</kbd> tour</footer>
+      <footer class="foot">Built at Patch the Conference, San Francisco, 24 October 2026. Graph: FalkorDB. Hard-to-get data: Bright Data. Discovery: Exa. Timestamps are recovered from platform post IDs, so the replay is the real minute-by-minute day. <kbd>space</kbd> play or pause &middot; <kbd>esc</kbd> close &middot; <kbd>?</kbd> tour</footer>
     </main>
   </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/force-graph@1/dist/force-graph.min.js"></script>
+<script src="/static/vendor/force-graph.min.js"></script>
 <script src="/static/app.js"></script>
 </body>
 </html>
