@@ -38,6 +38,34 @@ _resolvers: dict[str, Any] = {}
 _live_bus: dict[str, list[dict]] = {}
 
 
+# control characters except tab and newline, built at runtime so the source stays plain text
+_CTRL = re.compile("[%s]" % "".join(map(chr, [*range(0, 9), 11, 12, *range(14, 32), 127])))
+_note_hits: dict[str, list[float]] = {}
+NOTE_LIMIT, NOTE_WINDOW = 5, 60.0
+
+
+def _client_ip(request: Request) -> str:
+    """The real client behind Fly's proxy. Fly sets Fly-Client-IP; X-Forwarded-For is the generic fallback;
+    the socket address is last, which on Fly would be the proxy itself and make the whole venue share a budget."""
+    return (request.headers.get("fly-client-ip") or request.headers.get("x-forwarded-for", "").split(",")[0].strip()
+            or (request.client.host if request.client else "unknown"))
+
+
+def _note_allowed(ip: str) -> bool:
+    """Per-client budget for room reports: NOTE_LIMIT per NOTE_WINDOW seconds, in memory, pruned as it goes."""
+    now = time.time()
+    hits = [t for t in _note_hits.get(ip, []) if now - t < NOTE_WINDOW]
+    if len(hits) >= NOTE_LIMIT:
+        _note_hits[ip] = hits
+        return False
+    hits.append(now)
+    _note_hits[ip] = hits
+    if len(_note_hits) > 256:  # forget clients whose window has fully expired
+        for k in [k for k, v in _note_hits.items() if not v or now - v[-1] >= NOTE_WINDOW]:
+            _note_hits.pop(k, None)
+    return True
+
+
 def notes_path(conf_id: str) -> Path:
     return config.TIMELINES / f"{conf_id}_notes.json"
 
@@ -315,14 +343,18 @@ def _resolver(conf_id: str):
 
 
 @app.post("/api/conf/{conf_id}/note")
-async def note(conf_id: str, body: dict):
+async def note(conf_id: str, body: dict, request: Request):
     """A one-line report from inside a room. Becomes a Post in the graph, resolved like any other, and is
     pushed to every open console. No account needed: this is the nudge that makes the layer two-sided."""
     import hashlib
 
-    text = (body.get("text") or "").strip()[:600]
-    if len(text) < 3:
-        raise HTTPException(400, "say something")
+    ip = _client_ip(request)
+    if not _note_allowed(ip):
+        raise HTTPException(429, "easy. five reports a minute per person is plenty")
+    text = _CTRL.sub("", body.get("text") or "")
+    text = re.sub(r"\s+", " ", text).strip()[:600]
+    if len(text) < 3 or not re.search(r"[^\W\d_]{2,}", text):  # two letters in a row, any script
+        raise HTTPException(400, "say something with words in it")
     handle = (body.get("handle") or "someone in the room").strip()[:60]
     session_id = (body.get("session_id") or "").strip() or None
     ts = datetime.now(timezone.utc)
