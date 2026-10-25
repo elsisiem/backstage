@@ -1,75 +1,114 @@
-# Backstage
+<p align="center">
+  <img src="app/static/logo.svg" width="64" height="64" alt="Backstage">
+</p>
 
-**The live layer for everyone who is not in the room.**
+<h1 align="center">Backstage</h1>
 
-Every conference has eight rooms and you are in one. Every conference has ten thousand people who care and a thousand who came. Hybrid is dying because livestream platforms are "cost-prohibitive" (CSCW 2025), visas are tightening (NeurIPS added a second site over refusals), and recordings land weeks later, unindexed.
+<p align="center"><strong>The live layer for everyone who is not in the room.</strong><br>
+The public internet, resolved to a conference agenda as it happens, into a graph you can question.</p>
 
-Backstage resolves the public internet to the agenda, **as it happens**, into a graph you can question:
+<p align="center">
+  <a href="https://backstage-live.fly.dev">backstage-live.fly.dev</a> &nbsp;·&nbsp;
+  <a href="https://backstage-live.fly.dev/console?tour=1">guided demo</a> &nbsp;·&nbsp;
+  <a href="https://backstage-live.fly.dev/console?play=keynote&speed=120">replay Universe 2025</a>
+</p>
 
-- **Moments, not posts.** A spike of reactions in Room 2 at 2:41 becomes a Moment: who, what, links. Walk over now or watch exactly those minutes later.
-- **Announcements as actions for your repo.** Every changelog entry and launch post is parsed, tagged with the parts of a stack it touches, and matched against your repo's manifests.
-- **Artifacts where they belong.** Slides, repos and demo links posted by speakers attach to their session the minute they appear.
-- **A permanent, queryable record.** Ask the graph: which sessions got loudest, which speakers posted about their own talk, what overlapped with the keynote, what shipped that touches `actions`.
+<p align="center"><img src="app/static/docs/console.png" width="920" alt="The Backstage console mid-replay: rooms on the left, the graph in the middle, the agent log on the right"></p>
 
-Built in one day at **Patch the Conference** (WeMakeDevs × Bright Data, San Francisco, 24 Oct 2026).
+---
+
+A conference has eight rooms and you are in one. It has ten thousand people who care and a thousand who came. Organizers are cutting remote access because livestreaming has become cost-prohibitive, research conferences are opening second sites because speakers cannot get visas, and recordings land weeks later without an index. Inside the venue the problem is the same in miniature: at any minute every attendee is outside seven of eight rooms.
+
+Backstage reads the public record of a conference while it is happening, decides which session every post is about, and keeps the result in a graph. From that graph it answers the questions the people outside the room actually have: which room is loud right now, what just shipped that touches my repository, and which minute did I miss.
+
+## What it does
+
+**Moments, not posts.** A spike of reactions in one room, an announcement starting to land, the whole venue posting at once. Each Moment carries its evidence and its time, so you can walk over now or jump to those minutes in the recording later.
+
+**Announcements as actions for your repository.** Every changelog entry and launch post is parsed and tagged with the parts of a stack it touches. Paste a repository and the graph answers which of today's announcements change something you depend on, and which sessions are yours.
+
+**A line back from inside.** Anyone in a room can send a single sentence, no account needed. It is resolved and attributed like any post and reaches every open console the moment it lands. That is what makes the layer two-sided.
+
+**Why, not just what.** Every placement in the graph carries the signals that produced it. Click a post and the console shows the path: the author is the speaker, the post landed twelve minutes into the slot, it reacts to an announcement made on that stage. Every question in the console compiles to read-only Cypher that is shown with the answer.
 
 ## How it works
 
 ```
- Bright Data / Exa ──► Listener ──► Resolver ──► Curator ──► Wire
- (posts, SERP,          (raw posts)   (post→session    (moments)   (announcements
-  Unlocker, X/LinkedIn/                edges with                    → facets → repos)
-  Bluesky/YouTube)                     reasons)
-                                 │
-                                 ▼
-                            FalkorDB graph  ◄──── console asks "why?" (Cypher paths)
+ public internet ──► Listener ──► Resolver ──► Curator ──► Wire ──► you
+ Bluesky · LinkedIn    posts with    post → session   Moments     announcements
+ X · github.blog       exact times   with reasons                  → facets → repo
+                                          │
+                                          ▼
+                                   FalkorDB graph  ◄── the console asks "why" (Cypher paths)
 ```
 
-**Graph (FalkorDB).** `Conference → Day → Session → Room/Speaker/Track/Product/Facet`, `Session -OVERLAPS- Session` (the conflict graph),
-`Post -BY→ Author -IS→ Speaker`, `Post -ABOUT_SESSION{confidence, reason, signals}→ Session`, `Post -ABOUT_ANNOUNCEMENT→ Announcement -AFFECTS→ Facet ←USES- Repo`,
-`Moment -OF→ Session|Announcement`, `Moment -EVIDENCE→ Post`. Every edge carries the reason it exists; every answer in the UI is a path.
+Four agents share one FalkorDB graph.
 
-**Resolver signals** (deterministic, explainable): the author is a speaker of the session; the post names a speaker; it quotes the title; semantic similarity to the abstract (OpenAI embeddings, optional); it names a product the session covers; it was posted inside the slot. An LLM only adjudicates between two close candidates.
+| Agent | Writes | How |
+|---|---|---|
+| Listener | `Post`, `Author` | Discovery through Exa and Bright Data; exact timestamps recovered from platform post IDs |
+| Resolver | `Post -ABOUT_SESSION{confidence, reason, signals}-> Session` | Author is a speaker, names a speaker, quotes the title, embedding similarity, names a product, inside the slot, said on stage. An LLM adjudicates only between two close candidates |
+| Curator | `Moment -OF-> Session \| Announcement`, `Moment -EVIDENCE-> Post` | Session spikes, announcement waves, venue-wide surges |
+| Wire | `Announcement -AFFECTS-> Facet` | Changelog and launch posts with exact publish times, tagged by stack facet |
 
-**Exact timestamps without an API.** Bluesky record keys are TIDs (microseconds since the epoch in sortable base32) and LinkedIn activity IDs carry the millisecond timestamp in their top 41 bits, so the replay is the real minute-by-minute day. Verified against a live Bluesky record to the millisecond.
+The agenda itself is `Conference → Day → Session → Room / Speaker / Track / Product / Facet`, with `Session -OVERLAPS- Session` as the conflict graph. Repositories enter as `Repo -USES-> Facet`, so "what touches my stack" is a two-hop path.
 
-**Hard-to-get data (Bright Data).** The GitHub Universe catalog is a RainFocus JavaScript app; Bluesky's public AppView returns 403 from ordinary networks; X is pay-per-read and LinkedIn has no public read API. Backstage uses Bright Data's SERP API to discover X posts, the Web Scraper API for structured X records, and the Web Unlocker for Bluesky. Discovery of Bluesky and LinkedIn posts in a date window uses Exa.
+**Exact timestamps without an API.** Bluesky record keys are TIDs: microseconds since the epoch in sortable base32. LinkedIn activity IDs carry the millisecond timestamp in their top 41 bits. The replay is therefore the real minute-by-minute day, verified against a live Bluesky record to the millisecond.
+
+**Hard-to-get data.** The GitHub Universe catalog is a RainFocus JavaScript application with no public endpoint. Bluesky's public AppView returns 403 from ordinary networks. X is pay-per-read and LinkedIn has no public read API. Backstage uses Bright Data's SERP API to discover X posts, the Web Scraper API for structured records, and the Web Unlocker for Bluesky; Exa handles Bluesky and LinkedIn discovery inside a date window.
+
+## The console
+
+<p align="center"><img src="app/static/docs/console-dark.png" width="920" alt="The console in dark mode"></p>
+
+- **Right now across the venue.** One card that summarizes every room before you look at any of them.
+- **Rooms, right now.** Live only or on-demand later, straight from the catalog; the bar is public signal in the last thirty minutes.
+- **The graph.** Builds itself as the day unfolds and is mirrored into FalkorDB while it does. Expand it to the whole viewport.
+- **Agents, Moments, Wire, Ask.** The log is the agents' reasoning; Moments and Wire are their outputs; Ask compiles plain questions to Cypher.
+- **Your Backstage.** A repository becomes facets; facets reach announcements and sessions.
+- **Report from the room.** The one line back.
+- **Guided tour.** Nine steps that spotlight each part of the console in order. `?tour=1`, the sidebar, or the `?` key.
+
+Light and dark themes, keyboard control (`space` play/pause, `esc` close, `?` tour), and deep links for demos: `/console?play=keynote&speed=120`.
 
 ## Run it
 
 ```bash
-python -m venv .venv && . .venv/bin/activate      # Windows: .venv\Scripts\activate
+python -m venv .venv && . .venv/bin/activate          # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
-cp .env.example .env                              # FalkorDB host/password, OPENAI_API_KEY, BRIGHTDATA_API_KEY, EXA_API_KEY
+cp .env.example .env                                  # FalkorDB host and password, OPENAI_API_KEY, BRIGHTDATA_API_KEY, EXA_API_KEY
 
-python -m app.ingest.rainfocus universe25 universe26   # agenda (151 + 157 sessions)
-python -m scripts.build_timeline universe25            # resolve posts, curate moments, write the replay timeline, load FalkorDB
-python -m app.server                                   # http://localhost:8080
+python -m app.ingest.rainfocus universe25 universe26  # agenda: 151 + 157 sessions
+python -m scripts.build_timeline universe25           # resolve posts, curate moments, load FalkorDB, write the replay timeline
+python -m app.server                                  # http://localhost:8080
 ```
 
 FalkorDB: `docker run -p 6379:6379 -p 3000:3000 falkordb/falkordb:v4.22.2`, or any hosted instance. The demo deployment runs FalkorDB and the app on Fly.io (`infra/falkor/fly.toml`, `fly.toml`).
 
-Live mode: `POST /api/conf/universe26/live/pull` pulls fresh posts (Exa + Bright Data), resolves them with the same agents, appends to the timeline and the graph. The console polls it during the conference.
+Live mode: while a live-mode conference is inside its dates, the server pulls fresh posts every three minutes (`app/agents/live.py`), resolves them with the same agents, and appends to the timeline and the graph. GitHub Universe 2026 is loaded and armed for 28 October.
 
-## Repository map
+Without an OpenAI key the Resolver runs on deterministic signals only and free-form questions are disabled; templated questions still work. Without a Bright Data key, X and Bluesky harvesting are skipped and discovery runs on Exa alone.
+
+## Repository
 
 | Path | What |
 |---|---|
-| `app/ingest/rainfocus.py` | RainFocus catalog API (GitHub Universe) → sessions, speakers |
-| `app/ingest/posts.py` | Post normalization, TID / activity-ID timestamp recovery |
+| `app/ingest/rainfocus.py` | RainFocus catalog API → sessions, speakers |
+| `app/ingest/posts.py` | Post normalization, TID and activity-ID timestamp recovery |
 | `app/ingest/brightdata.py` | SERP discovery, X posts dataset, Unlocker for Bluesky |
 | `app/ingest/githubblog.py` | Announcements with exact publish times and facets |
-| `app/agents/resolver.py` | Post → session / speaker / announcement, with reasons |
-| `app/agents/curator.py` | Moments: session spikes, announcement waves, venue surges |
-| `app/agents/live.py` | Live pull loop for a conference happening now |
-| `app/facets.py` | Stack facets: lexicon + repo manifest reader |
+| `app/agents/resolver.py` | Post → session, speaker, announcement, with reasons |
+| `app/agents/curator.py` | Moments: spikes, waves, surges |
+| `app/agents/live.py` | Live pull for a conference happening now |
+| `app/facets.py` | Stack facets: lexicon and repository manifest reader |
 | `app/graph.py` | FalkorDB layer: schema, batched writes, path queries |
-| `app/server.py` | FastAPI: SSE replay (mirrored into a live graph), why/session/ask/repo endpoints |
-| `app/static/` | The console |
+| `app/server.py` | FastAPI: SSE replay mirrored into a live graph, why / session / ask / repo / note endpoints |
+| `app/static/` | Landing page and console |
 | `scripts/build_timeline.py` | End-to-end build for one conference |
+| `DEMO.md` | The three-minute script |
 
-## Honest limits
+## Limits
 
-- Discovery is semantic search over the public web, so recall is partial and a relevance filter drops off-topic hits.
-- Without an OpenAI key the resolver runs rules only (author, mention, title, product, time); embeddings roughly double session linking.
-- Small conferences are sparse. Backstage is strongest from a few hundred attendees up.
+Discovery is semantic search over the public web, so recall is partial and a relevance filter drops off-topic hits. Resolution is only as good as its signals; confidence and reason sit on every edge so a wrong placement is visible rather than silent. Small conferences are sparse; Backstage is strongest from a few hundred attendees up.
+
+Built in one day at Patch the Conference, San Francisco, 24 October 2026. Graph: FalkorDB. Hard-to-get data: Bright Data. Discovery: Exa.
