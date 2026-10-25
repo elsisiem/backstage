@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Backstage tour</title>
+<meta name="description" content="One real post from GitHub Universe 2025, followed through every stage of Backstage: published, timestamped from its ID, resolved to a session, written into FalkorDB, turned into a Moment, and matched to a repository.">
+<link rel="preload" href="/static/fonts/JetBrainsMono.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/static/fonts/Inter.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/static/fonts/fonts.css">
+<link rel="stylesheet" href="/static/styles.css">
+<link rel="icon" type="image/svg+xml" href="/static/logo.svg">
+<script>try{var t=localStorage.getItem('bs-theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}</script>
+</head>
+<body class="pg">
+<header class="pg-head">
+  <div class="wrap wide">
+    <a class="pg-brand" href="/"><svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><rect x="3" y="3" width="26" height="26" rx="3" fill="currentColor"/><path d="M8 20h16" stroke="var(--surface)" stroke-width="2"/><path d="M11 20v5M21 20v5" stroke="var(--surface)" stroke-width="2"/><circle cx="16" cy="12" r="3.2" fill="var(--accent)"/></svg>Backstage</a>
+    <span class="crumb">/</span><span class="crumb-here">Tour</span>
+    <div class="pg-act">
+      <div class="seg" data-theme-seg><button data-theme="light">Light</button><button data-theme="dark">Dark</button></div>
+      <a class="btn primary" href="/console?play=keynote&amp;speed=120">Open the console</a>
+    </div>
+  </div>
+</header>
+
+<main class="wrap wide">
+  <div class="tour-top">
+    <div>
+      <h1>One post, start to finish</h1>
+      <p id="tour-sub">A real post from GitHub Universe 2025, followed through every stage of Backstage. Every value on this page comes from the graph.</p>
+    </div>
+    <p class="keys"><kbd>&larr;</kbd> <kbd>&rarr;</kbd> to step &middot; <kbd>space</kbd> to pause</p>
+  </div>
+
+  <ol class="rail" id="rail" aria-label="tour steps"></ol>
+
+  <div class="tour-grid">
+    <section class="card traj" aria-label="trajectory">
+      <header class="card-h"><h2>Trajectory</h2><span class="mono" id="stepno">step 01 of 07</span></header>
+      <div id="canvas"><div class="scanline" style="margin:24px"></div></div>
+      <div class="cap">
+        <p id="caption" aria-live="polite"></p>
+        <div class="ctl">
+          <button class="btn" id="prev">Prev</button>
+          <button class="btn" id="pause">Pause</button>
+          <button class="btn primary" id="next">Next</button>
+        </div>
+      </div>
+    </section>
+    <aside>
+      <p class="art-k" id="art-k"></p>
+      <div id="artifact" class="anim-rise"></div>
+      <div id="end" hidden></div>
+    </aside>
+  </div>
+</main>
+
+<script src="/static/theme.js"></script>
+<script src="/static/tour.js"></script>
+</body>
+</html>
