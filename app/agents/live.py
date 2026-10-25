@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import os
+import threading
 import time
 from datetime import datetime, timedelta, timezone
 
@@ -41,6 +42,33 @@ def exa_recent(conf: dict, since_iso: str, until_iso: str) -> list[dict]:
     return out
 
 
+_resolvers: dict[str, tuple[Resolver, float]] = {}
+_resolver_lock = threading.Lock()
+RESOLVER_TTL = 15 * 60  # seconds; the agenda and announcement files can change during a live day
+
+
+def get_resolver(conf_id: str) -> Resolver:
+    """One Resolver per conference, shared by the server and the live loop.
+
+    Session embeddings are computed once (prepare() is idempotent). If embedding fails the resolver stays
+    LLM-enabled and simply retries on the next call instead of being cached in a degraded state. The instance
+    is rebuilt after RESOLVER_TTL so a refreshed agenda or new announcements are picked up without a restart.
+    """
+    with _resolver_lock:
+        cached = _resolvers.get(conf_id)
+        if cached and time.time() - cached[1] < RESOLVER_TTL:
+            r = cached[0]
+        else:
+            sessions, speakers = load_agenda(conf_id)
+            r = Resolver(sessions, speakers, load_announcements(conf_id), use_llm=True)
+            _resolvers[conf_id] = (r, time.time())
+        try:
+            r.prepare()
+        except Exception:
+            pass  # rules-only this call; the next call retries the embeddings
+        return r
+
+
 def pull_once(conf_id: str) -> dict:
     conf = config.CONFERENCES[conf_id]
     now = datetime.now(timezone.utc)
@@ -65,10 +93,11 @@ def pull_once(conf_id: str) -> dict:
     if not posts:
         return {"pulled": 0, "new": 0}
 
-    sessions, speakers = load_agenda(conf_id)
-    announcements = load_announcements(conf_id)
-    resolver = Resolver(sessions, speakers, announcements, use_llm=True)
+    resolver = get_resolver(conf_id)
+    sessions, announcements = resolver.sessions, resolver.announcements
+    calls_before = resolver.llm_calls
     resolutions = resolver.resolve_all(posts)
+    llm_calls_now = resolver.llm_calls - calls_before
     res_by_post = {r["post_id"]: r for r in resolutions}
     kw = [h.lower().lstrip("#") for h in conf["hashtags"]]
     posts = [p for p in posts if res_by_post[p["id"]]["sessions"] or res_by_post[p["id"]]["mentions"] or res_by_post[p["id"]]["announcements"]
@@ -113,7 +142,9 @@ def pull_once(conf_id: str) -> dict:
     tmp = tl_path.with_suffix(".json.tmp")
     tmp.write_text(json.dumps(tl, ensure_ascii=False), encoding="utf-8")
     os.replace(tmp, tl_path)  # atomic on POSIX and Windows; readers never see a torn file
-    return {"pulled": len(raw), "new": len(posts), "linked": counts["linked"], "moments_added": len(moments), "llm_calls": resolver.llm_calls}
+    linked_now = sum(1 for p in posts if res_by_post[p["id"]]["sessions"])
+    return {"pulled": len(raw), "new": len(posts), "linked": linked_now, "linked_total": counts["linked"], "moments_added": len(moments),
+            "llm_calls": llm_calls_now}
 
 
 if __name__ == "__main__":

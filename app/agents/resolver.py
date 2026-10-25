@@ -29,6 +29,7 @@ def _norm(s: str) -> str:
 
 class Resolver:
     def __init__(self, sessions: list[dict], speakers: list[dict], announcements: list[dict], use_llm: bool = True):
+        self.llm_calls = 0
         self.sessions = sessions
         self.speakers = {s["id"]: s for s in speakers}
         self.announcements = announcements
@@ -37,7 +38,6 @@ class Resolver:
         self.use_llm = bool(use_llm and config.OPENAI_API_KEY)
         self._client = None
         self._emb: dict[str, list[float]] = {}
-        self.llm_calls = 0
 
     # ----- optional OpenAI ----------------------------------------------------------------
     @property
@@ -59,7 +59,8 @@ class Resolver:
         return out
 
     def prepare(self) -> None:
-        if not self.use_llm:
+        """Embed session abstracts once. Idempotent: a prepared resolver never re-embeds."""
+        if not self.use_llm or self._emb:
             return
         texts = [f"{s['title']}. {s['abstract'][:800]}" for s in self.sessions]
         for s, e in zip(self.sessions, self.embed(texts)):
