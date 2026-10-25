@@ -114,7 +114,8 @@
             <div class="legend"><span><i style="background:#111318"></i>session</span><span><i style="background:#1d4ed8"></i>speaker</span><span><i style="background:#60a5fa"></i>bluesky</span><span><i style="background:#64748b"></i>linkedin</span><span><i style="background:#d97706"></i>announcement</span><span><i style="background:#ff4f00"></i>moment / note</span><span><i style="background:#0f766e"></i>facet</span></div>
           </header>
           <div class="graph-wrap">
-            <div id="graph" role="img" aria-label="Force-directed graph of sessions, speakers, posts, announcements and moments"></div>
+            <div id="graph" role="img" aria-label="Force-directed graph of sessions, speakers, posts, announcements and moments" aria-describedby="graph-sr"></div>
+            <ul id="graph-sr" class="sr-only" aria-label="Nodes currently in the graph"></ul>
             <div class="graph-empty" id="graph-empty"><b>[NO SIGNAL YET]</b><span>Press play. The graph builds itself from the public internet as the day unfolds. Click any node for the path behind it.</span></div>
             <div class="detail" id="detail" hidden><button class="close" id="detail-close" aria-label="close">&times;</button><div id="detail-body"></div></div>
           </div>

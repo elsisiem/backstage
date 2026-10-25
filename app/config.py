@@ -26,6 +26,11 @@ OPENAI_EMBED_MODEL = os.getenv("OPENAI_EMBED_MODEL", "text-embedding-3-small")
 BRIGHTDATA_API_KEY = os.getenv("BRIGHTDATA_API_KEY")
 BRIGHTDATA_UNLOCKER_ZONE = os.getenv("BRIGHTDATA_UNLOCKER_ZONE", "web_unlocker1")
 BRIGHTDATA_SERP_ZONE = os.getenv("BRIGHTDATA_SERP_ZONE", "serp_api1")
+# zone-password route (no account API key needed): SERP in proxy mode, blocked pages through the Browser API
+BRIGHTDATA_CUSTOMER = os.getenv("BRIGHTDATA_CUSTOMER")
+BRIGHTDATA_SERP_PASSWORD = os.getenv("BRIGHTDATA_SERP_PASSWORD")
+BRIGHTDATA_BROWSER_PASSWORD = os.getenv("BRIGHTDATA_BROWSER_PASSWORD")
+BRIGHTDATA_BROWSER_ZONE = os.getenv("BRIGHTDATA_BROWSER_ZONE", "web_unlocker1")
 
 EXA_API_KEY = os.getenv("EXA_API_KEY")
 
