@@ -159,9 +159,10 @@ class Resolver:
         prompt = (f"A social post from a conference:\n\"\"\"{post['text'][:900]}\"\"\"\n\nWhich session is it about?\n{opts}\n0. none of these\n"
                   "Answer with the number only.")
         try:
+            from app.llm import chat
+
             self.llm_calls += 1
-            r = self.client.chat.completions.create(model=config.OPENAI_MODEL, messages=[{"role": "user", "content": prompt}], max_completion_tokens=5)
-            n = int(re.findall(r"\d+", r.choices[0].message.content or "0")[0])
+            n = int((re.findall(r"\d+", chat(prompt, max_tokens=40)) or ["0"])[0])
             return cands[n - 1]["session_id"] if 1 <= n <= len(cands) else None
         except Exception:
             return None

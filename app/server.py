@@ -442,28 +442,23 @@ def _plain(v: Any) -> Any:
 
 
 def _llm_cypher(q: str) -> str | None:
-    from openai import OpenAI
+    from app.llm import chat
 
-    client = OpenAI(api_key=config.OPENAI_API_KEY)
     prompt = (f"You write Cypher for FalkorDB (openCypher; no APOC; use toLower(); lists with collect()).\nSchema:{SCHEMA_DOC}\n"
               f"Write ONE read-only MATCH query that answers: \"{q}\". Return at most 12 rows with readable column aliases. Output only the query.")
     try:
-        r = client.chat.completions.create(model=config.OPENAI_MODEL, messages=[{"role": "user", "content": prompt}], max_completion_tokens=400)
-        text = (r.choices[0].message.content or "").strip()
-        text = re.sub(r"^```(?:cypher)?|```$", "", text, flags=re.M).strip()
-        return text
+        text = chat(prompt, max_tokens=600)
+        return re.sub(r"^```(?:cypher)?|```$", "", text, flags=re.M).strip() or None
     except Exception:
         return None
 
 
 def _llm_answer(q: str, cols: list[str], rows: list[list[Any]]) -> str | None:
-    from openai import OpenAI
+    from app.llm import chat
 
-    client = OpenAI(api_key=config.OPENAI_API_KEY)
     data = json.dumps({"columns": cols, "rows": rows[:12]}, default=str)[:6000]
     try:
-        r = client.chat.completions.create(model=config.OPENAI_MODEL, messages=[{"role": "user", "content": f"Question: {q}\nGraph result: {data}\nAnswer in two short sentences, concrete, no preamble."}], max_completion_tokens=160)
-        return (r.choices[0].message.content or "").strip()
+        return chat(f"Question: {q}\nGraph result: {data}\nAnswer in two short sentences, concrete, no preamble.", max_tokens=300) or None
     except Exception:
         return None
 
