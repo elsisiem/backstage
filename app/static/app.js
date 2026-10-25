@@ -221,7 +221,7 @@
   function onMoment(ev) {
     const m = ev.moment; S.counts.moments++; S.moments.push({ ...m, t: ev.t });
     const target = m.session_id ? 's:' + m.session_id : m.announcement_id ? 'a:' + m.announcement_id : null;
-    addNode({ id: 'm:' + m.id, type: 'moment', label: m.headline, val: 7, moment: m });
+    addNode({ id: 'm:' + m.id, type: 'moment', label: m.headline, val: 7, moment: m, order: S.counts.moments });
     if (target) {
       if (m.session_id) { addNode({ id: target, type: 'session', label: S.sessions.get(m.session_id)?.title || '', val: 5, session: S.sessions.get(m.session_id) }); S.hot.set(m.session_id, ev.t); }
       addLink('m:' + m.id, target, 'of', true);
@@ -348,9 +348,13 @@
       .nodeCanvasObjectMode(() => 'after')
       .nodeCanvasObject((n, ctx, scale) => {
         if (!['session', 'ann', 'moment', 'speaker', 'facet', 'repo'].includes(n.type)) return;
-        if (scale < 0.9 && n.type !== 'moment') return;
-        const label = n.label.slice(0, n.type === 'session' ? 36 : n.type === 'moment' ? 40 : 24);
-        const size = Math.max(10 / scale, 2.6);
+        // label density: moments and big sessions always, announcements when zoomed a little, people and facets only when close
+        if (n.type === 'session' && (n.val || 0) < 6 && scale < 1.2) return;
+        if (n.type === 'ann' && scale < 1.0) return;
+        if ((n.type === 'speaker' || n.type === 'facet') && scale < 1.5) return;
+        if (n.type === 'moment' && S.counts.moments - (n.order || 0) > 4 && scale < 1.4) return;
+        const label = n.label.slice(0, n.type === 'session' ? 32 : n.type === 'moment' ? 30 : 22);
+        const size = Math.max(9 / scale, 2.4);
         ctx.font = `${n.type === 'speaker' || n.type === 'facet' ? 500 : 600} ${size}px "JetBrains Mono", monospace`;
         ctx.textAlign = 'center'; ctx.textBaseline = 'top';
         const w = ctx.measureText(label).width + 6;

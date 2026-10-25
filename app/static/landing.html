@@ -5,8 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Backstage</title>
 <meta name="description" content="Backstage is the live layer for everyone who is not in the room: the public internet resolved to a conference agenda as it happens, into a graph you can question.">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/fonts/fonts.css">
 <link rel="stylesheet" href="/static/styles.css">
 <link rel="icon" type="image/svg+xml" href="/static/logo.svg">
 <script>try{var t=localStorage.getItem('bs-theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}</script>
@@ -27,9 +26,9 @@
   .proof div{background:var(--surface);padding:14px 16px}
   .proof b{display:block;font-family:var(--mono);font-size:22px;font-weight:600;letter-spacing:-.01em}
   .proof span{font-size:12px;color:var(--muted)}
-  .shot{border:1px solid var(--line);border-radius:6px;background:var(--surface);overflow:hidden;aspect-ratio:16/11;position:relative}
-  .shot img{width:100%;height:100%;object-fit:cover;object-position:left top;display:block}
-  .shot .cap{position:absolute;left:10px;bottom:10px}
+  .shot{border:1px solid var(--line);border-radius:6px;background:var(--surface);overflow:hidden;position:relative}
+  .shot img{width:100%;height:auto;display:block}
+  .shot .cap{display:block;margin:8px 10px 10px;width:max-content}
   .sect{padding:48px 0;border-top:1px solid var(--line)}
   .sect h2{font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);font-weight:600;margin-bottom:18px}
   .sect h3.big{font-family:var(--sans);font-size:26px;font-weight:700;letter-spacing:-.02em;max-width:720px;margin-bottom:10px}

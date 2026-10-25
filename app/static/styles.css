@@ -264,3 +264,45 @@ body.has-expanded{overflow:hidden}
 .log .ln.listener,.log .ln.room,.log .ln.resolver{cursor:pointer}
 .log .ln.listener:hover,.log .ln.room:hover,.log .ln.resolver:hover{background:var(--hover)}
 kbd{font-size:10px;border:1px solid var(--line-strong);border-radius:2px;padding:0 4px;color:var(--muted)}
+
+/* ---------- typography lockdown: nothing inherits a system face ---------- */
+button,input,select,textarea,option{font-family:inherit}
+button,select,option,kbd,.xp,.seg button,.tabs button{font-family:var(--mono)}
+input,textarea,input::placeholder,textarea::placeholder{font-family:var(--sans)}
+.chips button{font-family:var(--sans)}
+.btn{white-space:nowrap}
+
+/* ---------- top bar: never crop, wrap in a controlled way ---------- */
+.topbar{height:auto;min-height:var(--top);flex-wrap:wrap;row-gap:6px;padding:8px 16px}
+.tb-left{flex:1 1 auto}
+.tb-mid{flex:0 1 auto}
+.tb-right{flex:0 0 auto;margin-left:auto}
+.clock{white-space:nowrap}
+.counters{gap:14px}
+.seg button{white-space:nowrap}
+@media (max-width:1560px){.clock span:first-child{display:none}.counters{gap:10px}.counters b{font-size:15px}.counters span{font-size:9px;letter-spacing:.08em}.jumps button{padding:7px 8px;font-size:10.5px}}
+@media (max-width:1400px){.graphstat,.counters div:nth-child(5){display:none}.tb-right{display:none}.masthead p{font-size:13.5px}}
+@media (max-width:1180px){.jumps button:nth-child(3){display:none}}
+
+/* ---------- card headers and tabs: one line, truncate, never overlap ---------- */
+.card-h{flex-wrap:nowrap;min-width:0}
+.card-h h2{white-space:nowrap;flex:0 0 auto}
+.card-h .row{display:flex;align-items:center;gap:8px;min-width:0;flex:1 1 auto;justify-content:flex-end}
+.card-h small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.card-h .legend{flex:1 1 auto;justify-content:flex-end;gap:8px;row-gap:3px;min-width:0}
+.legend span{white-space:nowrap}
+.graphcard .card-h{flex-wrap:wrap;row-gap:4px}
+.tabs button{white-space:nowrap;padding:10px 2px;font-size:10px;letter-spacing:.06em}
+.tabs button b{margin-left:3px;padding:0 3px}
+.tabs .xp{flex:0 0 auto;margin:8px 6px;align-self:center}
+.mine .card-h{flex-wrap:wrap}
+.mine .card-h small{white-space:normal}
+.repo-form .btn{flex:0 0 auto}
+.yours-out .item .h{overflow-wrap:anywhere}
+.room .st{overflow-wrap:anywhere}
+.digest li .v{overflow-wrap:anywhere;min-width:0}
+.cardi .h,.cardi .m{overflow-wrap:anywhere}
+.log .ln{overflow-wrap:anywhere}
+.stage b,.stage small{overflow:hidden;text-overflow:ellipsis}
+.note-row{flex-wrap:wrap}
+.note-row input{min-width:180px}
