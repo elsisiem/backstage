@@ -7,3 +7,4 @@ python-dotenv>=1.0
 sse-starlette>=2.1
 rapidfuzz>=3.9
 orjson>=3.10
+playwright>=1.47

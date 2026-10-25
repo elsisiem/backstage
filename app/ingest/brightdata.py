@@ -26,11 +26,50 @@ API = "https://api.brightdata.com/request"
 
 
 def enabled() -> bool:
-    return bool(config.BRIGHTDATA_API_KEY)
+    """Either route works: the account API key (request endpoint) or zone passwords (proxy mode + Browser API)."""
+    return bool(config.BRIGHTDATA_API_KEY) or bool(config.BRIGHTDATA_CUSTOMER and (config.BRIGHTDATA_SERP_PASSWORD or config.BRIGHTDATA_BROWSER_PASSWORD))
 
 
 def _headers() -> dict:
     return {"Authorization": f"Bearer {config.BRIGHTDATA_API_KEY}", "Content-Type": "application/json"}
+
+
+def _proxy_url(zone: str, password: str) -> str:
+    return f"http://brd-customer-{config.BRIGHTDATA_CUSTOMER}-zone-{zone}:{password}@brd.superproxy.io:33335"
+
+
+def _browser_ws() -> str | None:
+    if not (config.BRIGHTDATA_CUSTOMER and config.BRIGHTDATA_BROWSER_PASSWORD):
+        return None
+    return f"wss://brd-customer-{config.BRIGHTDATA_CUSTOMER}-zone-{config.BRIGHTDATA_BROWSER_ZONE}:{config.BRIGHTDATA_BROWSER_PASSWORD}@brd.superproxy.io:9222"
+
+
+def browser_fetch(url: str, wait_ms: int = 1500) -> str | None:
+    """Load a URL in Bright Data's remote browser (Browser API over CDP) and return the page text.
+
+    Used for endpoints that block plain requests from ordinary networks, such as Bluesky's public AppView.
+    JSON endpoints come back as the body text; HTML pages come back rendered.
+    """
+    ws = _browser_ws()
+    if not ws:
+        return None
+    key = f"browser:{url}"
+    if (c := _cached(key)) is not None:
+        return c
+    try:
+        from playwright.sync_api import sync_playwright
+
+        with sync_playwright() as p:
+            browser = p.chromium.connect_over_cdp(ws, timeout=60000)
+            page = browser.new_page()
+            page.goto(url, timeout=60000, wait_until="domcontentloaded")
+            page.wait_for_timeout(wait_ms)
+            text = page.evaluate("() => document.body ? document.body.innerText : ''")
+            browser.close()
+    except Exception:
+        return None
+    _store(key, text)
+    return text
 
 
 def _cached(key: str):
@@ -73,10 +112,13 @@ def serp(query: str, num: int = 20, tbs: str | None = None) -> list[dict]:
     if (c := _cached(key)) is not None:
         return c
     q = urllib.parse.urlencode({"q": query, "num": str(num), "brd_json": "1", **({"tbs": tbs} if tbs else {})})
-    body = {"zone": config.BRIGHTDATA_SERP_ZONE, "url": f"https://www.google.com/search?{q}", "format": "raw"}
+    target = f"https://www.google.com/search?{q}"
     out: list[dict] = []
     try:
-        r = httpx.post(API, headers=_headers(), json=body, timeout=90)
+        if config.BRIGHTDATA_API_KEY:
+            r = httpx.post(API, headers=_headers(), json={"zone": config.BRIGHTDATA_SERP_ZONE, "url": target, "format": "raw"}, timeout=90)
+        else:  # proxy mode with the zone password; Bright Data terminates TLS, so verification is off for this hop
+            r = httpx.get(target, proxy=_proxy_url(config.BRIGHTDATA_SERP_ZONE, config.BRIGHTDATA_SERP_PASSWORD), verify=False, timeout=90)
         if r.status_code == 200:
             j = r.json()
             for it in j.get("organic", []):
@@ -154,7 +196,10 @@ def harvest_x(conf_id: str, day_from: str, day_to: str) -> list[dict]:
     """Discover + scrape X posts for a conference window, cached as normalized posts for load_posts()."""
     conf = config.CONFERENCES[conf_id]
     urls = discover_x_posts(conf, day_from, day_to)
-    recs = scrape_x_posts(urls[:150])
+    if config.BRIGHTDATA_API_KEY:
+        recs = scrape_x_posts(urls[:150])
+    else:  # zone-password route: one syndication fetch per post through the remote browser
+        recs = [r for r in (x_post_via_browser(u) for u in urls[:80]) if r]
     posts = [p for p in (x_record_to_post(r) for r in recs) if p]
     if posts:
         (BD_DIR / f"posts_{conf_id}_x.json").write_text(json.dumps(posts, ensure_ascii=False), encoding="utf-8")
@@ -165,13 +210,54 @@ def harvest_x(conf_id: str, day_from: str, day_to: str) -> list[dict]:
 def bsky_search(query: str, since: str, until: str, limit: int = 100) -> list[dict]:
     """public.api.bsky.app searchPosts, fetched through Web Unlocker because the AppView blocks this network."""
     q = urllib.parse.urlencode({"q": query, "since": since, "until": until, "limit": str(limit), "sort": "latest"})
-    raw = unlock(f"https://public.api.bsky.app/xrpc/app.bsky.feed.searchPosts?{q}")
+    target = f"https://public.api.bsky.app/xrpc/app.bsky.feed.searchPosts?{q}"
+    raw = unlock(target) if config.BRIGHTDATA_API_KEY else browser_fetch(target)
     if not raw:
         return []
     try:
         return json.loads(raw).get("posts", [])
     except Exception:
         return []
+
+
+# ----- X posts without the datasets API: the syndication endpoint through the remote browser -------------
+def _syndication_token(tweet_id: str) -> str:
+    n = int(tweet_id) / 1e15 * 3.141592653589793
+    # base36 of the float, digits and dots stripped the way the official embed script does it
+    whole, frac = int(n), n - int(n)
+    digits = "0123456789abcdefghijklmnopqrstuvwxyz"
+    s = ""
+    w = whole
+    while w:
+        s = digits[w % 36] + s
+        w //= 36
+    f = ""
+    for _ in range(12):
+        frac *= 36
+        d = int(frac)
+        f += digits[d]
+        frac -= d
+    return (s + f).replace("0", "").replace(".", "")
+
+
+def x_post_via_browser(url: str) -> dict | None:
+    """Fetch one X post as JSON from the syndication endpoint (no login) through Bright Data's remote browser."""
+    m = re.search(r"/status/(\d+)", url)
+    if not m:
+        return None
+    tid = m.group(1)
+    raw = browser_fetch(f"https://cdn.syndication.twimg.com/tweet-result?id={tid}&token={_syndication_token(tid)}", wait_ms=800)
+    if not raw:
+        return None
+    try:
+        j = json.loads(raw)
+    except Exception:
+        return None
+    if not j.get("text"):
+        return None
+    user = j.get("user") or {}
+    return {"url": url, "description": j.get("text"), "date_posted": j.get("created_at"), "name": user.get("name"),
+            "user_posted": user.get("screen_name"), "likes": j.get("favorite_count"), "replies": j.get("conversation_count")}
 
 
 def bsky_record_to_post(rec: dict) -> dict | None:
