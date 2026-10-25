@@ -38,6 +38,8 @@ _resolvers: dict[str, Any] = {}
 _live_bus: dict[str, list[dict]] = {}
 
 
+# control characters except tab and newline, built at runtime so the source stays plain text
+_CTRL = re.compile("[%s]" % "".join(map(chr, [*range(0, 9), 11, 12, *range(14, 32), 127])))
 _note_hits: dict[str, list[float]] = {}
 NOTE_LIMIT, NOTE_WINDOW = 5, 60.0
 
@@ -339,7 +341,7 @@ async def note(conf_id: str, body: dict, request: Request):
     ip = request.client.host if request.client else "unknown"
     if not _note_allowed(ip):
         raise HTTPException(429, "easy. five reports a minute per person is plenty")
-    text = re.sub(r"[ --]", "", body.get("text") or "")
+    text = _CTRL.sub("", body.get("text") or "")
     text = re.sub(r"\s+", " ", text).strip()[:600]
     if len(text) < 3 or not re.search(r"[A-Za-z]{2,}", text):
         raise HTTPException(400, "say something with words in it")
