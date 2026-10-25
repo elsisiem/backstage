@@ -38,6 +38,22 @@ _resolvers: dict[str, Any] = {}
 _live_bus: dict[str, list[dict]] = {}
 
 
+_note_hits: dict[str, list[float]] = {}
+NOTE_LIMIT, NOTE_WINDOW = 5, 60.0
+
+
+def _note_allowed(ip: str) -> bool:
+    """Simple per-IP budget for room reports: NOTE_LIMIT per NOTE_WINDOW seconds, in memory."""
+    now = time.time()
+    hits = [t for t in _note_hits.get(ip, []) if now - t < NOTE_WINDOW]
+    if len(hits) >= NOTE_LIMIT:
+        _note_hits[ip] = hits
+        return False
+    hits.append(now)
+    _note_hits[ip] = hits
+    return True
+
+
 def notes_path(conf_id: str) -> Path:
     return config.TIMELINES / f"{conf_id}_notes.json"
 
@@ -315,14 +331,18 @@ def _resolver(conf_id: str):
 
 
 @app.post("/api/conf/{conf_id}/note")
-async def note(conf_id: str, body: dict):
+async def note(conf_id: str, body: dict, request: Request):
     """A one-line report from inside a room. Becomes a Post in the graph, resolved like any other, and is
     pushed to every open console. No account needed: this is the nudge that makes the layer two-sided."""
     import hashlib
 
-    text = (body.get("text") or "").strip()[:600]
-    if len(text) < 3:
-        raise HTTPException(400, "say something")
+    ip = request.client.host if request.client else "unknown"
+    if not _note_allowed(ip):
+        raise HTTPException(429, "easy. five reports a minute per person is plenty")
+    text = re.sub(r"[ --]", "", body.get("text") or "")
+    text = re.sub(r"\s+", " ", text).strip()[:600]
+    if len(text) < 3 or not re.search(r"[A-Za-z]{2,}", text):
+        raise HTTPException(400, "say something with words in it")
     handle = (body.get("handle") or "someone in the room").strip()[:60]
     session_id = (body.get("session_id") or "").strip() or None
     ts = datetime.now(timezone.utc)
