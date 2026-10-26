@@ -5,7 +5,7 @@
   const reduceMotion = () => window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const scrollBehavior = () => (reduceMotion() ? 'auto' : 'smooth');
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-  const tag = (t, cls = '') => `<em class="tag ${cls}">[${esc(t)}]</em>`;
+  const tag = (t, cls = '') => `<em class="tag ${cls}">${esc(t)}</em>`;
   const fmtTime = (epoch, tz) => new Intl.DateTimeFormat('en-US', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: tz }).format(new Date(epoch * 1000));
   const fmtDay = (epoch, tz) => new Intl.DateTimeFormat('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: tz }).format(new Date(epoch * 1000));
   const roomShort = (r) => (r || '').split('@')[0].trim();
@@ -25,7 +25,7 @@
   async function boot() {
     S.confs = await (await fetch('/api/conferences')).json();
     const sel = $('#conf-select');
-    sel.innerHTML = S.confs.map((c) => `<option value="${c.id}" ${c.built ? '' : 'disabled'}>${esc(c.short)} · ${c.mode}</option>`).join('');
+    sel.innerHTML = S.confs.map((c) => `<option value="${c.id}" ${c.built ? '' : 'disabled'}>${esc(c.short)}</option>`).join('');
     sel.onchange = () => loadConf(sel.value);
     initGraph();
     bindUI();
@@ -38,7 +38,7 @@
     if (u.searchParams.get('speed')) { S.speed = +u.searchParams.get('speed'); $$('#speeds button').forEach((x) => x.classList.toggle('on', +x.dataset.speed === S.speed)); }
     const jump = u.searchParams.get('play');
     if (jump) { const at = jumpEpoch(jump); resetView(); S.clock = at; renderClock(); renderRooms(); play(at); go('now'); }
-    if (u.searchParams.get('tour')) setTimeout(startTour, 600);
+    if (u.searchParams.get('tour')) location.replace('/tour');
   }
 
   // ---------- theme / expand / tour ----------------------------------------------------
@@ -51,53 +51,16 @@
   function toggleExpand(sel, force) {
     const card = $(sel); if (!card) return;
     const on = force ?? !card.classList.contains('expanded');
-    const relabel = (c, expanded) => { const b = c.querySelector('.xp'); if (!b) return; b.textContent = expanded ? 'CLOSE' : 'EXPAND'; const base = (b.getAttribute('aria-label') || '').replace(/^(Expand|Collapse) /, ''); b.setAttribute('aria-label', (expanded ? 'Collapse ' : 'Expand ') + base); b.setAttribute('aria-expanded', String(expanded)); };
+    const relabel = (c, expanded) => { const b = c.querySelector('.xp'); if (!b) return; b.textContent = expanded ? 'Close' : 'Expand'; const base = (b.getAttribute('aria-label') || '').replace(/^(Expand|Collapse) /, ''); b.setAttribute('aria-label', (expanded ? 'Collapse ' : 'Expand ') + base); b.setAttribute('aria-expanded', String(expanded)); };
     $$('.card.expanded').forEach((c) => { c.classList.remove('expanded'); relabel(c, false); });
     if (on) { card.classList.add('expanded'); relabel(card, true); }
     document.body.classList.toggle('has-expanded', on);
     setTimeout(() => { const el = $('#graph'); S.g.width(el.clientWidth).height(el.clientHeight); if (!S.userZoomed && S.gd.nodes.length) S.g.zoomToFit(300, 36); }, 230);
   }
 
-  const TOUR = [
-    { t: '.topbar', title: 'The clock is the real day', text: 'Day 1 of GitHub Universe 2025 at 08:55, replayed at two hours per minute. Every timestamp was recovered from a post ID, not an API. Speeds and jumps live here.', run: () => { if (!S.playing) { const at = jumpEpoch('keynote'); resetView(); S.clock = at; renderClock(); renderRooms(); play(at); } } },
-    { t: '#flow', title: 'The trajectory of one post', text: 'Public internet, Listener, Resolver, Graph, you. The counters under each stage move as the day unfolds. This is the whole product in one row.' },
-    { t: '#now', title: 'Read the venue before any room', text: 'Which room is loud, what just shipped, the moment you missed, the latest line from inside. One glance, then you decide where to look.' },
-    { t: '#rooms-card', title: 'Every room, right now', text: 'Live only or on-demand later, straight from the catalog. The bar is public signal in the last thirty minutes. Click a room for its posts, overlaps and moments.', run: () => go('rooms') },
-    { t: '#graph-card', title: 'The graph builds itself', text: 'Sessions are black, speakers blue, posts slate, announcements amber, moments orange. Click any node and the graph answers why it sits there, as a path.', run: () => { const pid = S.lastLinked; if (pid) openPost(S.posts.get(pid)); } },
-    { t: '#side', title: 'Four agents, one graph', text: 'Listener, Resolver, Wire and Curator write to the same FalkorDB graph. The log is their reasoning. Moments and Wire are their outputs.', run: () => setTab('moments') },
-    { t: '#report', title: 'One line back from the room', text: 'Anyone inside can report without an account. It is resolved and attributed like any post and reaches every open console the moment it lands.', run: () => { $('#note-text').value = 'Speaker just demoed the coding agent opening a PR from Slack. Room is full, overflow at the back.'; } },
-    { t: '#mine', title: 'Your stack, your Backstage', text: 'A repository becomes facets. Facets reach announcements and sessions in two hops. That is the personal layer, with evidence on every item.', run: () => buildMine($('#repo-input').value.trim()) },
-    { t: '#side', title: 'Ask in plain words', text: 'Templated questions and free-form ones compile to read-only Cypher against the same graph. The query is always shown.', run: () => { setTab('ask'); ask({ template: 'speakers_posting' }); } },
-  ];
-  let tourI = -1, tourEls = null;
-  function startTour() { if (tourEls) endTour(); tourEls = {}; tourEls.veil = document.createElement('div'); tourEls.veil.className = 'tour-veil'; tourEls.ring = document.createElement('div'); tourEls.ring.className = 'tour-ring'; tourEls.card = document.createElement('div'); tourEls.card.className = 'tour-card'; tourEls.track = document.createElement('div'); tourEls.track.className = 'tour-track'; tourEls.track.innerHTML = TOUR.map(() => '<i></i>').join(''); document.body.append(tourEls.veil, tourEls.ring, tourEls.card, tourEls.track); tourStep(0); }
-  function endTour() { if (!tourEls) return; Object.values(tourEls).forEach((e) => e.remove()); tourEls = null; tourI = -1; }
-  function tourStep(i) {
-    if (!tourEls) return;
-    if (i < 0 || i >= TOUR.length) return endTour();
-    tourI = i; const st = TOUR[i];
-    try { st.run && st.run(); } catch { /* step action is best effort */ }
-    $$('#nav button').forEach((b) => b.classList.remove('on'));
-    $$('i', tourEls.track).forEach((d, k) => { d.className = k < i ? 'done' : k === i ? 'on' : ''; });
-    const target = $(st.t);
-    target.scrollIntoView({ behavior: scrollBehavior(), block: 'center' });
-    tourEls.card.innerHTML = `<span class="lbl">STEP ${String(i + 1).padStart(2, '0')} / ${String(TOUR.length).padStart(2, '0')}</span><h3>${esc(st.title)}</h3><p>${esc(st.text)}</p><div class="row"><button class="btn" data-tb="back" ${i === 0 ? 'disabled' : ''}>BACK</button><button class="btn primary" data-tb="next">${i === TOUR.length - 1 ? 'FINISH' : 'NEXT'}</button><span class="sp">ESC TO LEAVE</span></div>`;
-    $$('[data-tb]', tourEls.card).forEach((b) => (b.onclick = () => tourStep(b.dataset.tb === 'back' ? i - 1 : i + 1)));
-    setTimeout(() => {
-      if (!tourEls) return;
-      const r = target.getBoundingClientRect();
-      Object.assign(tourEls.ring.style, { left: r.left - 6 + 'px', top: r.top - 6 + 'px', width: r.width + 12 + 'px', height: r.height + 12 + 'px' });
-      const cw = 360, ch = tourEls.card.offsetHeight || 180;
-      let left = r.right + 14, top = r.top;
-      if (left + cw > innerWidth - 12) { left = Math.max(12, r.left); top = r.bottom + 14; }
-      if (top + ch > innerHeight - 12) top = Math.max(12, innerHeight - ch - 12);
-      if (left + cw > innerWidth - 12) left = innerWidth - cw - 12;
-      Object.assign(tourEls.card.style, { left: left + 'px', top: top + 'px' });
-    }, 420);
-  }
 
   async function health() {
-    try { const h = await (await fetch('/health')).json(); const g = h.graph || {}; setStatus('st-graph', g.reachable ? `CONNECTED · ${(g.graphs || []).length} GRAPHS · ${g.ping_ms} MS` : 'UNREACHABLE', g.reachable ? 'ok' : ''); }
+    try { const h = await (await fetch('/health')).json(); const g = h.graph || {}; setStatus('st-graph', g.reachable ? `ONLINE · ${Math.round(g.ping_ms)} MS` : 'UNREACHABLE', g.reachable ? 'ok' : ''); }
     catch { setStatus('st-graph', 'UNREACHABLE'); }
   }
   function setStatus(id, text, cls = '') { const el = $('#' + id); el.textContent = `[${text}]`; el.className = cls; }
@@ -109,9 +72,9 @@
     S.meta = await (await fetch(`/api/conf/${id}/bootstrap`)).json();
     S.sessions = new Map(S.meta.sessions.map((s) => [s.id, s]));
     S.anns = new Map((S.meta.announcements || []).map((a) => [a.id, a]));
-    $('#conf-name').textContent = S.meta.conf.name.toUpperCase();
+    $('#conf-name').textContent = S.meta.conf.name;
     const live = S.meta.conf.mode === 'live';
-    $('#mode-tag').textContent = live ? '[LIVE]' : '[REPLAY]';
+    $('#mode-tag').textContent = live ? 'Live' : 'Replay';
     $('#mode-tag').className = 'tag ' + (live ? 'accent' : '');
     setStatus('st-live', live ? `ARMED · ${S.meta.conf.days[0].slice(5).replace('-', '/')}` : 'NOT THIS EVENT', live ? 'ok' : '');
     resetView();
@@ -146,12 +109,12 @@
     const start = startAt ?? S.clock;
     S.es = new EventSource(`/api/conf/${S.conf}/stream?speed=${S.speed}&start=${start}`);
     S.playing = true;
-    $('#btn-play').textContent = 'PAUSE';
+    $('#btn-play').textContent = 'Pause';
     $('#graph-empty').hidden = true;
     setStatus('st-stream', S.meta.conf.mode === 'live' ? 'LIVE' : `REPLAY · ${S.speed}X`, S.meta.conf.mode === 'live' ? 'live' : 'ok');
     S.es.addEventListener('hello', (e) => { const d = JSON.parse(e.data); log('graph', `connected. ${d.total} events on the record. mirroring into FalkorDB graph "${S.conf}_live": ${d.mirror ? 'on' : 'off'}`); });
     S.es.addEventListener('catchup', (e) => { const d = JSON.parse(e.data); if (d.posts) log('listener', `${d.posts} posts already on the record before this point`); });
-    S.es.addEventListener('tick', (e) => { S.clock = JSON.parse(e.data).clock; renderClock(); renderRooms(); if (S.clock % 120 < 2) renderDigest(); });
+    S.es.addEventListener('tick', (e) => { S.clock = JSON.parse(e.data).clock; renderClock(); renderRooms(); if (Date.now() - (S.lastDigest || 0) > 2000) { S.lastDigest = Date.now(); renderDigest(); } });
     S.es.addEventListener('post', (e) => onPost(JSON.parse(e.data)));
     S.es.addEventListener('resolve', (e) => onResolve(JSON.parse(e.data)));
     S.es.addEventListener('announcement', (e) => onAnnouncement(JSON.parse(e.data)));
@@ -160,7 +123,7 @@
     S.es.addEventListener('done', () => { log('graph', 'end of the record'); stop(); });
     S.es.onerror = () => { setStatus('st-stream', 'RECONNECTING'); };
   }
-  function stop() { if (S.es) { S.es.close(); S.es = null; } S.playing = false; $('#btn-play').textContent = 'PLAY'; setStatus('st-stream', 'IDLE'); }
+  function stop() { if (S.es) { S.es.close(); S.es = null; } S.playing = false; $('#btn-play').textContent = 'Play'; setStatus('st-stream', 'IDLE'); }
 
   // ---------- events -------------------------------------------------------------------
   function who(p) { return p.author || (p.handle ? '@' + p.handle : 'someone'); }
@@ -272,7 +235,7 @@
     else if (live.length) head = `${live.length} sessions in progress and the internet is quiet about all of them.`;
     else head = 'Nothing scheduled at this minute. The record keeps filling between sessions.';
     $('#now-head').textContent = head;
-    $('#now-tag').textContent = `[${fmtTime(now, tz)} · ${live.length} IN PROGRESS]`;
+    $('#now-tag').textContent = `${fmtTime(now, tz)} · ${live.length} in progress`;
     for (const x of loud.slice(0, 3)) lines.push({ k: roomShort(x.s.room), v: `${x.s.title} <small>· ${x.n} post${x.n > 1 ? 's' : ''} in 30 min · ${x.s.replayable ? 'on-demand later' : 'live only'}</small>`, hot: (S.hot.get(x.s.id) || 0) >= now - 2400 });
     const quiet = live.filter((s) => recent(s.id) === 0);
     if (quiet.length) lines.push({ k: 'QUIET', v: `${quiet.length} session${quiet.length > 1 ? 's' : ''} with no public signal <small>· ${quiet.filter((s) => !s.replayable).length} of them will not be recorded · e.g. ${esc(quiet[0].title.slice(0, 44))}</small>` });
@@ -282,8 +245,9 @@
     $('#digest').innerHTML = lines.map((l) => `<li><span class="k ${l.hot ? 'hot' : ''}">${l.k}</span><span class="v">${l.v}</span></li>`).join('');
     // the report form offers the rooms that are live now
     const sel = $('#note-session'); const cur = sel.value;
-    sel.innerHTML = '<option value="">Which room are you in?</option>' + live.map((s) => `<option value="${s.id}">${esc(roomShort(s.room))} · ${esc(s.title.slice(0, 48))}</option>`).join('');
-    if (cur) sel.value = cur;
+    const liveSig = live.map((s) => s.id).join(',');
+    if (liveSig !== S.liveSig) { S.liveSig = liveSig; sel.innerHTML = '<option value="">Which room are you in?</option>' + live.map((s) => `<option value="${s.id}">${esc(roomShort(s.room))} · ${esc(s.title.slice(0, 48))}</option>`).join('');
+    if (cur) sel.value = cur; }
   }
 
   // ---------- rooms --------------------------------------------------------------------
@@ -304,7 +268,7 @@
       return `<div class="room ${hot ? 'hot' : ''}" data-sid="${s.id}"><div class="rn"><span>${esc(roomShort(room))}</span><span class="ago">${starts}</span></div>
         <span class="st">${esc(s.title)}</span>
         <div class="sp">${esc((s.speakers || []).slice(0, 3).join(', '))}${s.speakers?.length > 3 ? ' +' + (s.speakers.length - 3) : ''} · ${esc(s.start_local)}–${esc(s.end_local)}</div>
-        <div class="tags">${s.replayable ? tag('ON-DEMAND LATER', 'dim') : tag('LIVE ONLY')}${hot ? tag('MOMENT', 'accent') : ''}${recent(s.id) ? tag(recent(s.id) + ' POSTS · 30 MIN', 'blue') : ''}</div>
+        <div class="tags"><span>${s.replayable ? tag('ON-DEMAND LATER', 'dim') : tag('LIVE ONLY')}${hot ? ' ' + tag('MOMENT', 'accent') : ''}</span><span class="cnt">${recent(s.id) ? recent(s.id) + ' posts · 30 min' : ''}</span></div>
         <div class="meter"><i style="width:${Math.min(100, recent(s.id) * 14)}%"></i></div></div>`;
     }).join('')).join('') || '<div class="empty">No room is live at this minute.</div>';
     $$('#rooms .room').forEach((el) => (el.onclick = () => openSession(el.dataset.sid)));
@@ -376,7 +340,7 @@
     S.g.d3Force('pull', (alpha) => { for (const n of S.gd.nodes) { if (Number.isFinite(n.x)) { n.vx -= n.x * 0.015 * alpha; n.vy -= n.y * 0.015 * alpha; } } });
     el.addEventListener('wheel', () => { S.userZoomed = true; }, { passive: true });
     el.addEventListener('mousedown', () => { S.userZoomed = true; });
-    setInterval(() => { if (!S.userZoomed && S.gd.nodes.length) S.g.zoomToFit(500, 36, (n) => Number.isFinite(n.x)); }, 2000);
+    setInterval(() => { const n = S.gd.nodes.length; if (!S.userZoomed && n && n !== S.fitN) { S.fitN = n; S.g.zoomToFit(600, 36, (x) => Number.isFinite(x.x)); } }, 1500);
     const fit = () => S.g.width(el.clientWidth).height(el.clientHeight);
     new ResizeObserver(fit).observe(el); fit();
   }
@@ -407,7 +371,7 @@
     if (n.type === 'post') return openPost(n.post);
     if (n.type === 'session') return openSession(n.id.slice(2));
     if (n.type === 'ann') return openAnn(n.id.slice(2));
-    if (n.type === 'moment') return showDetail(`<h3>${esc(n.moment.headline)}</h3>${tag('MOMENT', 'accent')}<span class="k">why it fired</span><div>${esc(n.moment.detail || '')}</div><span class="k">evidence</span>${(n.moment.evidence || []).map((id) => S.posts.get(id)).filter(Boolean).map((p) => `<div class="post">${esc(p.text.slice(0, 160))}<div class="m">${esc(who(p))} · ${esc(p.platform)}</div></div>`).join('')}${n.moment.session_id ? `<p><button class="btn" onclick="window.__openSession('${n.moment.session_id}')">OPEN SESSION</button></p>` : ''}`);
+    if (n.type === 'moment') return showDetail(`<h3>${esc(n.moment.headline)}</h3>${tag('MOMENT', 'accent')}<span class="k">why it fired</span><div>${esc(n.moment.detail || '')}</div><span class="k">evidence</span>${(n.moment.evidence || []).map((id) => S.posts.get(id)).filter(Boolean).map((p) => `<div class="post">${esc(p.text.slice(0, 160))}<div class="m">${esc(who(p))} · ${esc(p.platform)}</div></div>`).join('')}${n.moment.session_id ? `<p><button class="btn" onclick="window.__openSession('${n.moment.session_id}')">Open session</button></p>` : ''}`);
     if (n.type === 'speaker') { const ss = S.meta.sessions.filter((s) => (s.speakers || []).includes(n.label)); return showDetail(`<h3>${esc(n.label)}</h3>${tag('SPEAKER', 'blue')}<span class="k">speaking at</span>${ss.map((s) => `<div class="post"><b>${esc(s.title)}</b><div class="m">${esc(roomShort(s.room))} · ${esc(s.day)} ${esc(s.start_local)}</div></div>`).join('') || '<div class="ev">no session found in the agenda</div>'}`); }
     if (n.type === 'facet' || n.type === 'repo') return showDetail(`<h3>${esc(n.label)}</h3>${tag(n.type === 'repo' ? 'REPO' : 'FACET')}<div class="ev" style="margin-top:8px">A stack facet is the shared vocabulary that joins repos, sessions, announcements and posts. Paste a repo in Your Backstage to see what reaches you through it.</div>`);
   }
@@ -483,35 +447,27 @@
   // ---------- report from the room -----------------------------------------------------
   async function sendNote() {
     const text = $('#note-text').value.trim(); if (text.length < 3) return;
-    const btn = $('#note-send'); btn.disabled = true; btn.textContent = 'SENDING';
+    const btn = $('#note-send'); btn.disabled = true; btn.textContent = 'Sending';
     try {
       const r = await fetch(`/api/conf/${S.conf}/note`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text, handle: $('#note-handle').value.trim(), session_id: $('#note-session').value }) });
       const ev = await r.json();
       if (!r.ok) throw new Error(ev.detail || 'failed');
       if (!S.playing) onNote(ev);
-      const ok = $('#note-ok'); ok.hidden = false; ok.textContent = `[DELIVERED] ${ev.resolve.sessions.length ? 'placed under “' + ev.resolve.sessions[0].title.slice(0, 50) + '”' : 'on the record'} · every open console has it now`;
+      const ok = $('#note-ok'); ok.hidden = false; ok.textContent = `Delivered · ${ev.resolve.sessions.length ? 'placed under “' + ev.resolve.sessions[0].title.slice(0, 50) + '”' : 'on the record'} · every open console has it now`;
       $('#note-text').value = '';
-    } catch (e) { const ok = $('#note-ok'); ok.hidden = false; ok.textContent = `[NOT SENT] ${e.message}`; }
-    finally { btn.disabled = false; btn.textContent = 'SEND TO EVERYONE'; }
+    } catch (e) { const ok = $('#note-ok'); ok.hidden = false; ok.textContent = `Not sent · ${e.message}`; }
+    finally { btn.disabled = false; btn.textContent = 'Send to everyone'; }
   }
 
   // ---------- navigation / ui -----------------------------------------------------------
   function go(where) {
     $$('#nav button').forEach((b) => b.classList.toggle('on', b.dataset.go === where));
-    const map = { now: '#now', rooms: '#rooms-card', graph: '#graph-card', moments: '#side', wire: '#side', ask: '#side', mine: '#mine', guide: '#guide' };
+    const map = { now: '#now', rooms: '#rooms-card', graph: '#graph-card', moments: '#side', wire: '#side', ask: '#side', mine: '#mine' };
     if (['moments', 'wire', 'ask', 'agents'].includes(where)) setTab(where);
     const el = $(map[where] || '#now'); if (el) el.scrollIntoView({ behavior: scrollBehavior(), block: where === 'now' ? 'start' : 'nearest' });
   }
   function setTab(t) { $$('#tabs button').forEach((x) => x.classList.toggle('on', x.dataset.tab === t)); $$('.tabpane').forEach((p) => p.classList.toggle('on', p.id === 'tab-' + t)); }
 
-  function runStep(step) {
-    if (step === 'play') { const at = jumpEpoch('keynote'); resetView(); S.clock = at; renderClock(); renderRooms(); play(at); go('now'); }
-    if (step === 'now') { renderDigest(); go('now'); }
-    if (step === 'why') { const pid = S.lastLinked || [...S.posts.keys()][0]; if (pid) { openPost(S.posts.get(pid)); go('graph'); } else { go('graph'); } }
-    if (step === 'mine') { go('mine'); buildMine($('#repo-input').value.trim()); }
-    if (step === 'ask') { go('ask'); ask({ template: 'speakers_posting' }); }
-    if (step === 'note') { go('now'); $('#note-text').value = 'Speaker just demoed the coding agent opening a PR from Slack. Room is full, overflow at the back.'; $('#note-text').focus(); }
-  }
 
   function bindUI() {
     $('#btn-play').onclick = () => (S.playing ? stop() : play());
@@ -519,22 +475,18 @@
     $$('#jumps button').forEach((b) => (b.onclick = () => { const at = jumpEpoch(b.dataset.jump); resetView(); S.clock = at; renderClock(); renderRooms(); play(at); }));
     $$('#tabs button').forEach((b) => (b.onclick = () => setTab(b.dataset.tab)));
     $$('[data-go]').forEach((b) => (b.onclick = (e) => { e.preventDefault(); go(b.dataset.go); }));
-    $$('[data-step]').forEach((b) => (b.onclick = () => runStep(b.dataset.step)));
     $('#collapse').onclick = () => { $('#shell').classList.toggle('collapsed'); setTimeout(() => S.g.width($('#graph').clientWidth).height($('#graph').clientHeight), 220); };
     $('#ask-form').onsubmit = (e) => { e.preventDefault(); const q = $('#ask-input').value.trim(); if (q) ask({ q }); };
     $('#repo-form').onsubmit = (e) => { e.preventDefault(); buildMine($('#repo-input').value.trim()); };
     $('#note-form').onsubmit = (e) => { e.preventDefault(); sendNote(); };
     $$('[data-expand]').forEach((b) => (b.onclick = (e) => { e.stopPropagation(); toggleExpand(b.dataset.expand); }));
-    $$('[data-tour]').forEach((b) => (b.onclick = (e) => { e.preventDefault(); startTour(); }));
     initTheme();
     document.addEventListener('keydown', (e) => {
       const typing = ['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName);
-      if (e.key === 'Escape') { if (tourEls) return endTour(); if ($('.card.expanded')) return toggleExpand('.card.expanded', false); $('#detail').hidden = true; return; }
+      if (e.key === 'Escape') { if ($('.card.expanded')) return toggleExpand('.card.expanded', false); $('#detail').hidden = true; return; }
       if (typing) return;
       if (e.key === ' ') { e.preventDefault(); S.playing ? stop() : play(); }
-      if (e.key === '?') startTour();
-      if (tourEls && (e.key === 'ArrowRight' || e.key === 'Enter')) tourStep(tourI + 1);
-      if (tourEls && e.key === 'ArrowLeft') tourStep(tourI - 1);
+      if (e.key === '?') location.href = '/tour';
     });
   }
 

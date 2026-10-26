@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import hashlib
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import datetime
 
 WINDOW = 30 * 60       # seconds
 COOLDOWN = 45 * 60     # per-session gap between moments
@@ -26,7 +26,6 @@ def _mid(*parts: str) -> str:
 
 
 def build_moments(posts: list[dict], resolutions: list[dict], sessions: list[dict], announcements: list[dict]) -> list[dict]:
-    by_id = {p["id"]: p for p in posts}
     sess = {s["id"]: s for s in sessions}
     res_by_post = {r["post_id"]: r for r in resolutions}
     exact = [p for p in posts if p.get("ts_exact") and p.get("ts")]

@@ -1,0 +1,402 @@
+{
+ "conf": {
+  "id": "universe25",
+  "name": "GitHub Universe 2025",
+  "tz": "America/Los_Angeles",
+  "sessions": 151,
+  "posts": 286
+ },
+ "post": {
+  "id": "b8c53c06f6f1",
+  "url": "https://www.linkedin.com/posts/kyledaigle_introducing-agent-hq-any-agent-any-way-activity-7388984470055329793-tiXF",
+  "platform": "linkedin",
+  "handle": "kyledaigle",
+  "author": "Kyle Daigle",
+  "text": "For years, we’ve always had this passion for solving developer problems in hopes of making building a bit easier, a bit more joyful. And every leap, from Git to GitHub Copilot, has been guided by that same instinct. Today, we’re introducing the next evolution of that journey: Agent HQ – an ecosystem that makes agents native to the workflow developers already trust. Mission Control gives every developer a place to steer a fleet of agents, following them wherever they work. Plan Mode in VS Code gives context right be",
+  "ts": "2025-10-28T17:06:18.354000+00:00",
+  "local": "10:06:18",
+  "date": "Tue 28 Oct 2025",
+  "native_id": "7388984470055329793"
+ },
+ "decode": {
+  "kind": "linkedin",
+  "id": "7388984470055329793",
+  "bits": 63,
+  "shift": 22,
+  "ms": 1761671178354,
+  "iso": "2025-10-28T17:06:18.354Z"
+ },
+ "resolve": {
+  "in_progress": 2,
+  "threshold": 0.42,
+  "candidates": [
+   {
+    "session_id": "1756898827184001uqBY",
+    "title": "Opening Keynote",
+    "room": "Main Stage",
+    "start_local": "9:00 AM",
+    "score": 0.969,
+    "signals": {
+     "author": 1.0,
+     "semantic": 0.74,
+     "product": 0.5,
+     "time": 1.0
+    },
+    "winner": true
+   },
+   {
+    "session_id": "1757336641198001Taq1",
+    "title": "Power agentic workflows in your terminal with GitHub Copilot CLI",
+    "room": "Silent Disco Demos",
+    "start_local": "12:10 PM",
+    "score": 0.455,
+    "signals": {
+     "semantic": 1.0,
+     "product": 0.5,
+     "time": 0.3
+    },
+    "winner": false
+   },
+   {
+    "session_id": "1759234736313001IaUs",
+    "title": "Build apps & agents that scale with VS Code, GitHub Copilot, and Agent Framework",
+    "room": "Main Stage",
+    "start_local": "12:50 PM",
+    "score": 0.455,
+    "signals": {
+     "semantic": 1.0,
+     "product": 0.5,
+     "time": 0.3
+    },
+    "winner": false
+   }
+  ],
+  "signals": [
+   "author",
+   "mention",
+   "title",
+   "semantic",
+   "product",
+   "time",
+   "keyword",
+   "on_stage",
+   "llm"
+  ],
+  "edge": {
+   "confidence": 0.969,
+   "reason": "author Kyle Daigle is a speaker of this session; semantically close to the abstract (74%); names a product the session covers; posted 66 min after the start of the slot",
+   "signals": [
+    "author",
+    "product",
+    "semantic",
+    "time"
+   ]
+  }
+ },
+ "session": {
+  "id": "1756898827184001uqBY",
+  "title": "Opening Keynote",
+  "room": "Main Stage",
+  "start": "9:00 AM",
+  "end": "9:45 AM",
+  "replayable": true,
+  "capacity": 684,
+  "speakers": [
+   "Kyle Daigle",
+   "Jessica Deen",
+   "Pierce Boggan"
+  ]
+ },
+ "write": {
+  "cypher": "MATCH (p:Post {id:$pid}), (s:Session {id:$sid})\nMERGE (p)-[r:ABOUT_SESSION]->(s)\nSET r.confidence = $c, r.reason = $reason, r.signals = $signals",
+  "params": {
+   "pid": "b8c53c06f6f1",
+   "sid": "1756898827184001uqBY",
+   "c": 0.969,
+   "signals": [
+    "author",
+    "product",
+    "semantic",
+    "time"
+   ]
+  },
+  "read": "MATCH (p:Post {id:$pid})-[:BY]->(:Author)-[:IS]->(sp:Speaker)<-[:PRESENTED_BY]-(s:Session)\nRETURN sp.name, s.title, s.room"
+ },
+ "why": {
+  "post_id": "b8c53c06f6f1",
+  "sessions": [
+   {
+    "session_id": "1756898827184001uqBY",
+    "title": "Opening Keynote",
+    "room": "Main Stage @ Festival Pavilion",
+    "start_local": "9:00 AM",
+    "confidence": 0.969,
+    "reason": "author Kyle Daigle is a speaker of this session; semantically close to the abstract (74%); names a product the session covers; posted 66 min after the start of the slot",
+    "signals": [
+     "author",
+     "product",
+     "semantic",
+     "time"
+    ],
+    "speakers": [
+     "Kyle Daigle",
+     "Jessica Deen",
+     "Pierce Boggan"
+    ],
+    "author_is_speaker": [
+     "Kyle Daigle"
+    ]
+   }
+  ],
+  "mentions": [],
+  "facets": [
+   "enterprise",
+   "vscode",
+   "data-insights",
+   "coding-agent"
+  ],
+  "announcements": [
+   "Enterprise AI controls & the agent control plane are in public preview",
+   "A mission control to assign, steer, and track Copilot coding agent tasks"
+  ],
+  "cypher": "MATCH (p:Post {id:$id})-[r:ABOUT_SESSION]->(s:Session)-[:PRESENTED_BY]->(sp:Speaker) RETURN p, r, s, sp"
+ },
+ "announcements": [
+  {
+   "title": "A mission control to assign, steer, and track Copilot coding agent tasks",
+   "status": "Update",
+   "time": "08:29"
+  },
+  {
+   "title": "Enterprise AI controls & the agent control plane are in public preview",
+   "status": "Preview",
+   "time": "08:24"
+  }
+ ],
+ "facets": [
+  "enterprise",
+  "data-insights",
+  "coding-agent",
+  "vscode"
+ ],
+ "moment": {
+  "kind": "wave",
+  "time": "10:06",
+  "headline": "“A mission control to assign, steer, and track Copilot coding agent tasks” is landing: 6 posts in the hours after it shipped",
+  "announcement": {
+   "title": "A mission control to assign, steer, and track Copilot coding agent tasks",
+   "status": "Update",
+   "time": "08:29",
+   "url": "https://github.blog/changelog/2025-10-28-a-mission-control-to-assign-steer-and-track-copilot-coding-agent-tasks/"
+  },
+  "evidence": [
+   {
+    "id": "c0c74b72ee63",
+    "author": "Zachery Kuykendall",
+    "platform": "linkedin",
+    "time": "09:24",
+    "text": "I’ve been shipping on GitHub for years, and today’s Agent HQ announcement feels like a real inflection point. Instead of",
+    "self": false
+   },
+   {
+    "id": "80f2e2bf13d7",
+    "author": "Mario Rodriguez",
+    "platform": "linkedin",
+    "time": "09:46",
+    "text": "GitHub is your favorite coding agent’s favorite platform. 🌟\nThe next era of software development is orchestration. We're",
+    "self": false
+   },
+   {
+    "id": "b8c53c06f6f1",
+    "author": "Kyle Daigle",
+    "platform": "linkedin",
+    "time": "10:06",
+    "text": "For years, we’ve always had this passion for solving developer problems in hopes of making building a bit easier, a bit ",
+    "self": true
+   },
+   {
+    "id": "b6bdd208e182",
+    "author": "Vladimir Fedorov",
+    "platform": "linkedin",
+    "time": "10:09",
+    "text": "The next evolution of our platform is here: Agent HQ brings agents natively into @GitHub with new capabilities built on ",
+    "self": false
+   },
+   {
+    "id": "2ba87cd0d636",
+    "author": "Amanda Silver",
+    "platform": "linkedin",
+    "time": "10:24",
+    "text": "#GitHub Universe is underway and wow! - there’s a lot of goodies in store for the more than 180 million developers that ",
+    "self": false
+   },
+   {
+    "id": "b43daaa0fec0",
+    "author": "David Ramel",
+    "platform": "linkedin",
+    "time": "11:45",
+    "text": "At GitHub Universe 2025, GitHub introduced Agent HQ, a new platform for orchestrating AI agents across GitHub and Visual",
+    "self": false
+   }
+  ]
+ },
+ "repo": {
+  "name": "falkordb/falkordb",
+  "stars": 10491,
+  "facets": [
+   {
+    "facet": "custom-agents",
+    "evidence": [
+     ".claude/skills/bench",
+     ".claude/skills/bench/SKILL.md"
+    ]
+   },
+   {
+    "facet": "containers",
+    "evidence": [
+     ".devcontainer/Dockerfile",
+     "bench/Dockerfile"
+    ]
+   },
+   {
+    "facet": "codespaces",
+    "evidence": [
+     ".devcontainer/devcontainer.json"
+    ]
+   },
+   {
+    "facet": "security",
+    "evidence": [
+     ".github/codeql",
+     ".github/codeql/codeql-config.yml"
+    ]
+   },
+   {
+    "facet": "actions",
+    "evidence": [
+     ".github/workflows/_build-artifacts.yml",
+     ".github/workflows/_build-flavour.yml"
+    ]
+   },
+   {
+    "facet": "vscode",
+    "evidence": [
+     ".vscode/launch.json",
+     ".vscode/settings.json"
+    ]
+   },
+   {
+    "facet": "rust",
+    "evidence": [
+     "Cargo.toml",
+     "language: Rust"
+    ]
+   },
+   {
+    "facet": "python",
+    "evidence": [
+     "language: Python"
+    ]
+   },
+   {
+    "facet": "open-source",
+    "evidence": [
+     "public repo, 10491 stars"
+    ]
+   },
+   {
+    "facet": "code-review",
+    "evidence": [
+     "pull requests on GitHub"
+    ]
+   },
+   {
+    "facet": "coding-agent",
+    "evidence": [
+     "hosted on GitHub"
+    ]
+   }
+  ],
+  "announcements": [
+   {
+    "title": "Introducing Agent HQ: Any agent, any way you work",
+    "status": "Announced",
+    "via": [
+     "actions",
+     "code-review",
+     "rust",
+     "coding-agent"
+    ]
+   },
+   {
+    "title": "A mission control to assign, steer, and track Copilot coding agent tasks",
+    "status": "Update",
+    "via": [
+     "vscode",
+     "code-review",
+     "coding-agent",
+     "custom-agents"
+    ]
+   },
+   {
+    "title": "Custom images for GitHub-hosted runners are now available in public preview",
+    "status": "GA",
+    "via": [
+     "security",
+     "actions",
+     "rust",
+     "containers"
+    ]
+   },
+   {
+    "title": "New public preview features in Copilot code review: AI reviews that see the full picture",
+    "status": "GA",
+    "via": [
+     "security",
+     "code-review",
+     "coding-agent"
+    ]
+   }
+  ],
+  "sessions": [
+   {
+    "title": "Power to the people: How Duke Energy built a thriving developer community",
+    "room": "BATS Theatre",
+    "start": "10:30 AM",
+    "via": [
+     "security",
+     "vscode",
+     "open-source",
+     "actions"
+    ]
+   },
+   {
+    "title": "Get a handle on securing your build process with Artifact Attestations",
+    "room": "Silent Disco Demos",
+    "start": "3:50 PM",
+    "via": [
+     "security",
+     "open-source",
+     "actions",
+     "containers"
+    ]
+   },
+   {
+    "title": "From pull request to production: Crafting secure CI/CD with GitHub Actions",
+    "room": "Workshops",
+    "start": "2:30 PM",
+    "via": [
+     "security",
+     "actions",
+     "code-review",
+     "rust"
+    ]
+   }
+  ],
+  "shared_with_post": [
+   "coding-agent",
+   "vscode"
+  ]
+ },
+ "built_at": "2026-10-25T01:15:00+00:00"
+}

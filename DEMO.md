@@ -1,25 +1,23 @@
-# Demo script (under three minutes)
+# Demo script (three minutes)
 
-Open `https://backstage-live.fly.dev/console?play=keynote&speed=120` on the projector. The console starts at 8:55 AM on Day 1 of GitHub Universe 2025 and runs at two hours per minute.
+Light theme, browser full screen. Two tabs ready: `https://backstage-live.fly.dev/tour` and `https://backstage-live.fly.dev/console?play=keynote&speed=120`.
 
-**0:00 · The problem (15 s).** "Every conference has eight rooms and you are in one. Every conference has ten thousand people who care and a thousand who came. Hybrid is dying because livestreams are cost-prohibitive, visas are tightening, and recordings land weeks later. Backstage is the live layer for everyone who is not in the room."
+**0:00 · Landing (15 s).** Open `https://backstage-live.fly.dev`. "A conference runs eight rooms at once, and most people who care about it are not in any of them. The day is narrated in public by the people who are. Backstage reads that record as it is written and keeps it in a graph." Click **Take the tour**.
 
-**0:15 · The record is real (20 s).** Point at the clock. "This is last year's Universe, minute by minute. No API gave us this: Bluesky post keys and LinkedIn activity IDs encode their creation time, so we recovered exact timestamps for 600 posts. The agenda is the RainFocus catalog, 151 sessions, which is a JavaScript app with no public endpoint."
+**0:15 · Tour, steps 01 and 02 (30 s).** Let it autoplay. "This is one real post. Kyle Daigle, who spoke at the opening keynote, on LinkedIn at 10:06. Discovery gives us a date and no time. The Listener reads the time out of the post ID itself: LinkedIn activity IDs carry the millisecond in their top 41 bits." Point at the decode table on the right.
 
-**0:35 · Watch the graph build (30 s).** "Left: every room, right now, and how loud it is. Middle: the FalkorDB graph growing as posts arrive. Right: four agents. Listener ingests. Resolver decides where a post belongs and writes the reason onto the edge. Wire parses announcements as they ship and tags the parts of a stack they touch. Curator turns spikes into Moments." Let the keynote wave hit around 9:10. "Twenty people are posting about the keynote. That is a Moment: walk over, or jump to that minute of the recording tonight."
+**0:45 · Step 03, Resolve (30 s).** "The Resolver scores the post against every session. Author is a speaker, the text matches the abstract, it names a product the talk covered, it landed in the window. 0.97 against 0.46. The reason is written on the edge."
 
-**1:05 · Why, not just what (30 s).** Click a post node under the keynote. "Every placement is a path. This post sits under the Opening Keynote because its author is the speaker, it was posted twelve minutes into the slot, and it reacts to an announcement made on that stage. Here is the Cypher." Click the session. "Overlaps: the conflict graph. Live-only versus on-demand, straight from the catalog."
+**1:15 · Steps 04 and 05, Write and Moment (30 s).** "The edge goes into FalkorDB, and here it is read back: Post, Author, Speaker, Session, Room. Five other people were posting about the same announcement, so the Curator made it a Moment." Point at the evidence list.
 
-**1:35 · Your stack (30 s).** Scroll to Your Backstage. Paste `https://github.com/falkordb/falkordb`, press Build mine. "Manifests become facets: Actions workflows, a devcontainer, Cargo. Repo to Facet to Announcement: these shipped today and touch you. Repo to Facet to Session: these talks, in these rooms, are yours. Two hops in FalkorDB, with the evidence."
+**1:45 · Step 06, You (15 s).** "Paste a repository and its manifests become facets. Two hops later you know which announcements and sessions from that morning touch your stack."
 
-**2:05 · Ask the graph (20 s).** Ask tab, click "Which speakers posted about their own session?" then "Which sessions overlap with the loudest one?". "Templated and free-form questions compile to read-only Cypher."
+**2:00 · Console (45 s).** Switch to the console tab, already replaying. "This is the same graph for the whole day. Every room, right now. The venue summarized before you pick one. Agents writing to FalkorDB as posts arrive." Click a post node: "every placement is a path." Click **Ask**, then "Which speakers posted about their own session?". Type one line into **Report from the room** and send: "anyone inside can send one line, no account, and it reaches every open console."
 
-**2:25 · Hard data, live Wednesday (20 s).** "Discovery runs on Exa; the hard parts run on Bright Data: SERP to find X posts, the Web Scraper for structured records, the Unlocker because Bluesky's own API blocks ordinary networks. Universe 2026 is loaded, 157 sessions, and the live loop starts pulling when the doors open Wednesday. Use it from your seat."
+**2:45 · Close (15 s).** "Bright Data reaches what a plain script cannot: X through the SERP API and Bluesky through the Browser API. Universe 2026 is loaded and goes live Wednesday. Backstage: the live layer for everyone who is not in the room."
 
-**2:45 · Close (10 s).** "Backstage: the live layer for everyone who is not in the room. Any conference, zero organizer effort, a graph you can question."
+## Questions to expect
 
-## Judge questions to expect
-
-- *Why a graph?* Every answer is a multi-hop path (Post → Author → Speaker → Session; Repo → Facet → Announcement). The conflict graph (OVERLAPS) and the live mirror are native graph operations.
-- *How accurate is resolution?* Rules first (author, mention, title, product, time, stage), embeddings and an LLM adjudicator when a key is set. Confidence and reason live on the edge. A wrong placement is one click away from a correction.
-- *What about small conferences?* Sparse. Backstage is strongest from a few hundred attendees up, and the agenda layer works for any size.
+- **Why a graph?** Every answer is a path: Post to Author to Speaker to Session, Repo to Facet to Announcement. The conflict map is `OVERLAPS` edges computed inside FalkorDB.
+- **How accurate is placement?** Deterministic signals first, embeddings and an LLM tie-break when a key is set. Confidence and reason live on the edge, so a wrong placement is visible.
+- **Small conferences?** Sparse. Strongest from a few hundred attendees up; the agenda layer works at any size.

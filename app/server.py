@@ -33,7 +33,6 @@ app.mount("/static", StaticFiles(directory=str(STATIC)), name="static")
 _timelines: dict[str, dict] = {}
 _graphs: dict[str, Graph] = {}
 _live_graphs: dict[str, Graph] = {}
-_resolvers: dict[str, Any] = {}
 # field notes reported from inside the venue, pushed to every open stream the moment they land
 _live_bus: dict[str, list[dict]] = {}
 
@@ -107,6 +106,11 @@ async def console():
     return FileResponse(STATIC / "console.html")
 
 
+@app.get("/tour")
+async def tour():
+    return FileResponse(STATIC / "tour.html")
+
+
 @app.get("/health")
 async def health(response: Response):
     """Liveness plus the two things an operator actually wants: is the graph reachable, and how fast.
@@ -117,6 +121,8 @@ async def health(response: Response):
             data = orjson.loads(p.read_bytes())
         except Exception:
             out.setdefault("warnings", []).append(f"{p.name}: unreadable right now")
+            continue
+        if p.stem.endswith("_story"):
             continue
         if p.stem.endswith("_notes"):
             out["notes"][p.stem[:-6]] = len(data)
@@ -153,6 +159,15 @@ async def conferences():
 async def bootstrap(conf_id: str):
     tl = timeline(conf_id)
     return tl["meta"]
+
+
+@app.get("/api/conf/{conf_id}/story")
+async def story(conf_id: str):
+    """One real post followed through every stage, precomputed by scripts/build_story.py from the graph."""
+    path = config.TIMELINES / f"{conf_id}_story.json"
+    if not path.exists():
+        raise HTTPException(404, f"no story built for {conf_id}; run python -m scripts.build_story {conf_id}")
+    return FileResponse(path, media_type="application/json", headers={"Cache-Control": "public, max-age=300"})
 
 
 # ----- replay stream ------------------------------------------------------------------------
@@ -348,19 +363,9 @@ async def repo(conf_id: str, body: dict):
 
 # ----- field notes: people inside the venue reporting for everyone who is not ------------------
 def _resolver(conf_id: str):
-    if conf_id not in _resolvers:
-        from app.agents.resolver import Resolver
-        from app.ingest.githubblog import load_announcements
-        from app.ingest.rainfocus import load as load_agenda
+    from app.agents.live import get_resolver
 
-        sessions, speakers = load_agenda(conf_id)
-        r = Resolver(sessions, speakers, load_announcements(conf_id), use_llm=True)
-        try:
-            r.prepare()
-        except Exception:
-            r.use_llm = False
-        _resolvers[conf_id] = r
-    return _resolvers[conf_id]
+    return get_resolver(conf_id)
 
 
 @app.post("/api/conf/{conf_id}/note")
