@@ -40,7 +40,11 @@ _live_bus: dict[str, list[dict]] = {}
 # control characters except tab and newline, built at runtime so the source stays plain text
 _CTRL = re.compile("[%s]" % "".join(map(chr, [*range(0, 9), 11, 12, *range(14, 32), 127])))
 _note_hits: dict[str, list[float]] = {}
+_ask_hits: dict[str, list[float]] = {}
+_pull_hits: dict[str, list[float]] = {}
 NOTE_LIMIT, NOTE_WINDOW = 5, 60.0
+ASK_LIMIT, ASK_WINDOW = 10, 60.0  # every question can spend OpenAI credits
+PULL_LIMIT, PULL_WINDOW = 2, 60.0  # a manual pull spends Exa and Bright Data credits
 
 
 def _client_ip(request: Request) -> str:
@@ -50,19 +54,24 @@ def _client_ip(request: Request) -> str:
             or (request.client.host if request.client else "unknown"))
 
 
-def _note_allowed(ip: str) -> bool:
-    """Per-client budget for room reports: NOTE_LIMIT per NOTE_WINDOW seconds, in memory, pruned as it goes."""
+def _allowed(hits_by_ip: dict[str, list[float]], ip: str, limit: int, window: float) -> bool:
+    """Per-client budget: `limit` calls per `window` seconds, in memory, pruned as it goes."""
     now = time.time()
-    hits = [t for t in _note_hits.get(ip, []) if now - t < NOTE_WINDOW]
-    if len(hits) >= NOTE_LIMIT:
-        _note_hits[ip] = hits
+    hits = [t for t in hits_by_ip.get(ip, []) if now - t < window]
+    if len(hits) >= limit:
+        hits_by_ip[ip] = hits
         return False
     hits.append(now)
-    _note_hits[ip] = hits
-    if len(_note_hits) > 256:  # forget clients whose window has fully expired
-        for k in [k for k, v in _note_hits.items() if not v or now - v[-1] >= NOTE_WINDOW]:
-            _note_hits.pop(k, None)
+    hits_by_ip[ip] = hits
+    if len(hits_by_ip) > 256:  # forget clients whose window has fully expired
+        for k in [k for k, v in hits_by_ip.items() if not v or now - v[-1] >= window]:
+            hits_by_ip.pop(k, None)
     return True
+
+
+def _note_allowed(ip: str) -> bool:
+    """Room reports: NOTE_LIMIT per NOTE_WINDOW seconds per client."""
+    return _allowed(_note_hits, ip, NOTE_LIMIT, NOTE_WINDOW)
 
 
 def notes_path(conf_id: str) -> Path:
@@ -462,7 +471,9 @@ async def ask_templates():
 
 
 @app.post("/api/conf/{conf_id}/ask")
-async def ask(conf_id: str, body: dict):
+async def ask(conf_id: str, body: dict, request: Request):
+    if not _allowed(_ask_hits, _client_ip(request), ASK_LIMIT, ASK_WINDOW):
+        raise HTTPException(429, "easy. ten questions a minute per person is plenty")
     q = (body.get("q") or "").strip()
     template = body.get("template")
     g = graph(conf_id)
@@ -567,7 +578,13 @@ def _llm_answer(q: str, cols: list[str], rows: list[list[Any]]) -> str | None:
 
 # ----- live ingest (Universe 2026 on the day, any conference with hashtags) ------------------
 @app.post("/api/conf/{conf_id}/live/pull")
-async def live_pull(conf_id: str):
+async def live_pull(conf_id: str, request: Request):
+    if not _allowed(_pull_hits, _client_ip(request), PULL_LIMIT, PULL_WINDOW):
+        raise HTTPException(429, "a pull just ran. wait a minute before pulling again")
+    return await _pull(conf_id)
+
+
+async def _pull(conf_id: str):
     from app.agents.live import pull_once
 
     result = await asyncio.get_running_loop().run_in_executor(None, pull_once, conf_id)
@@ -584,7 +601,7 @@ async def _live_loop():
             today = date.today().isoformat()
             for cid, c in config.CONFERENCES.items():
                 if c["mode"] == "live" and c["days"][0] <= today <= c["days"][-1] and (config.TIMELINES / f"{cid}.json").exists():
-                    await live_pull(cid)
+                    await _pull(cid)
         except Exception:
             pass
         await asyncio.sleep(180)
