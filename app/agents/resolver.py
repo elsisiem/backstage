@@ -187,7 +187,8 @@ class Resolver:
         if "on_stage" in sig:
             parts.append("reacts to an announcement made on this stage")
         if sig.get("time") == 1.0 and post.get("ts_exact"):
-            t = datetime.fromisoformat(post["ts"]); st = datetime.fromisoformat(s["start_utc"])
+            t = datetime.fromisoformat(post["ts"])
+            st = datetime.fromisoformat(s["start_utc"])
             dm = int((t - st).total_seconds() // 60)
             parts.append(f"posted {abs(dm)} min {'after the start' if dm >= 0 else 'before the start'} of the slot")
         return "; ".join(parts) or "weak match"
