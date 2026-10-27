@@ -177,7 +177,7 @@ The hosted FalkorDB starts empty. Load a conference into it by running the build
 - Resolution is only as good as its signals. Confidence and reason sit on every edge, so a wrong placement is visible rather than silent.
 - Small conferences are sparse. Backstage is strongest from a few hundred attendees up.
 - The posts in `data/timeline/` are public posts captured for the replay: 286 for GitHub Universe 2025 (282 from LinkedIn, 4 from Bluesky, none from X). The 2026 timeline is empty until the event.
-- The live site has no authentication. `/api/conf/{id}/ask` and `/api/conf/{id}/live/pull` spend API credits on every call (OpenAI, Exa, Bright Data), and only room reports are rate limited (5 per minute per client).
+- The live site has no authentication. `/api/conf/{id}/ask` and `/api/conf/{id}/live/pull` spend API credits on every call (OpenAI, Exa, Bright Data), so they are rate limited per client along with room reports: 10 questions, 2 pulls and 5 reports per minute. The limits live in memory, so they reset on restart and are not shared between instances. The background live loop is not subject to them.
 - There is no automated test suite. CI runs ruff and a compile check.
 
 ## Credits
